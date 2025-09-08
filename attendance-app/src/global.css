@@ -1,0 +1,4 @@
+@import "tailwindcss";
+@import "preline/variants.css";
+/* Optional Preline UI Datepicker Plugin */
+/* @import "preline/src/plugins/datepicker/styles.css"; */

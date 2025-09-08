@@ -5,7 +5,7 @@ import TeacherDashboard from "./teacher";
 
 // Shared types
 export type AttendanceStatus = "present" | "absent" | "late";
-export type Student = { id: string; name: string };
+export type Student = { id: string; name: string; standard?: string };
 export type Assignments = Record<string, string[]>; // teacher -> [studentId]
 export type AttendanceMap = Record<
   string, // teacher
@@ -62,39 +62,41 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-r from-blue-400 to-green-400">
-      <h1 className="text-4xl font-bold mb-10 text-white drop-shadow">ClassTrack</h1>
+    <div className="flex flex-col items-center justify-center min-h-screen bg-[#0D1B2A]">
+      <h1 className="text-5xl font-bold mb-12 text-[#F1F1F1] drop-shadow-lg tracking-tight font-sans">ClassTrack</h1>
 
       <div className="flex gap-8">
         <button
-          className="px-8 py-4 bg-white text-blue-600 font-semibold rounded-lg shadow-lg hover:bg-blue-100 transition"
-          onClick={() => setRole("admin")}
+          className="hs-button hs-button-primary px-10 py-5 rounded-xl shadow-lg bg-[#3A86FF] text-[#F1F1F1] font-semibold text-lg hover:bg-[#4361EE] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#3A86FF]"
+          onClick={() => setRole('admin')}
         >
           Admin
         </button>
         <button
-          className="px-8 py-4 bg-white text-green-600 font-semibold rounded-lg shadow-lg hover:bg-green-100 transition"
-          onClick={() => setRole("teacher")}
+          className="hs-button hs-button-primary px-10 py-5 rounded-xl shadow-lg bg-[#3A86FF] text-[#F1F1F1] font-semibold text-lg hover:bg-[#4361EE] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#3A86FF]"
+          onClick={() => setRole('teacher')}
         >
           Teacher
         </button>
       </div>
 
-      {role === "teacher" && (
-        <div className="mt-8 flex flex-col items-center gap-2 animate-[fadeIn_200ms_ease-in]">
-          <h2 className="text-white font-semibold">Select Teacher:</h2>
+      {role === 'teacher' && (
+        <div className="mt-10 flex flex-col items-center gap-3 animate-fadeIn">
+          <h2 className="text-[#F1F1F1] font-semibold text-lg mb-2">Select Teacher:</h2>
           {teachers.length === 0 ? (
-            <p className="text-white">No teachers added yet.</p>
+            <p className="text-[#EAEAEA]">No teachers added yet.</p>
           ) : (
-            teachers.map((t) => (
-              <button
-                key={t}
-                className="px-6 py-2 bg-white text-green-600 rounded hover:bg-green-100 transition shadow"
-                onClick={() => setCurrentTeacher(t)}
-              >
-                {t}
-              </button>
-            ))
+            <div className="flex flex-wrap gap-4 justify-center">
+              {teachers.map((t) => (
+                <button
+                  key={t}
+                  className="hs-button hs-button-secondary px-6 py-3 rounded-lg bg-[#121212] text-[#3A86FF] font-medium hover:bg-[#1A263B] hover:text-[#4361EE] transition shadow"
+                  onClick={() => setCurrentTeacher(t)}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
           )}
         </div>
       )}

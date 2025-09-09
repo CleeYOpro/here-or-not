@@ -13,7 +13,9 @@ export default function PrelineScript() {
       import("jquery").then(($) => {
         (window as any).$ = $;
         (window as any).jQuery = $;
-        (window as any).DataTable = ($.fn as any).dataTable;
+        import("datatables.net").then(() => {
+          (window as any).DataTable = ($.fn as any).dataTable;
+        });
       });
       import("lodash").then((_mod) => {
         (window as any)._ = _mod;
@@ -21,7 +23,6 @@ export default function PrelineScript() {
       import("nouislider").then((noUiSlider) => {
         (window as any).noUiSlider = noUiSlider;
       });
-      import("datatables.net");
       import("dropzone/dist/dropzone-min.js");
       import("vanilla-calendar-pro").then((VanillaCalendarPro) => {
         (window as any).VanillaCalendarPro = VanillaCalendarPro;

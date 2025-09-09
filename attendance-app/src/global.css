@@ -1,4 +1,8 @@
 @import "tailwindcss";
 @import "preline/variants.css";
+@import "flyonui/src/vendor/fullcalendar.css";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 /* Optional Preline UI Datepicker Plugin */
 /* @import "preline/src/plugins/datepicker/styles.css"; */

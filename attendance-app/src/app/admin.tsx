@@ -30,11 +30,11 @@ export default function AdminDashboard({
   attendance,
   setAttendance,
 }: AdminProps) {
-  // Local form state
   const [newTeacher, setNewTeacher] = useState("");
   const [studentName, setStudentName] = useState("");
   const [studentId, setStudentId] = useState("");
   const [studentStandard, setStudentStandard] = useState("");
+  const [studentTeacher, setStudentTeacher] = useState<string>("");
   const [selectedTeacher, setSelectedTeacher] = useState<string>("");
   const [selectedStudentId, setSelectedStudentId] = useState<string>("");
   const [activeTab, setActiveTab] = useState<"view" | "manage">("view");
@@ -45,7 +45,6 @@ export default function AdminDashboard({
 
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []); // 2025-09-08
 
-  // Derived maps
   const assignedForTeacher = (t: string) => new Set(assignments[t] ?? []);
 
   const addTeacher = () => {
@@ -60,12 +59,21 @@ export default function AdminDashboard({
     const name = studentName.trim();
     const id = studentId.trim();
     const standard = studentStandard.trim();
+    const teacher = studentTeacher.trim();
     if (!name || !/^\d{5}$/.test(id)) return; // 5-digit id
     if (students.some((s) => s.id === id)) return; // unique id
     setStudents((prev) => [...prev, { id, name, standard }]);
+    if (teacher) {
+      setAssignments((prev) => {
+        const current = prev[teacher] ?? [];
+        if (current.includes(id)) return prev;
+        return { ...prev, [teacher]: [...current, id] };
+      });
+    }
     setStudentName("");
     setStudentId("");
     setStudentStandard("");
+    setStudentTeacher("");
   };
 
   const assignStudent = () => {
@@ -170,31 +178,25 @@ export default function AdminDashboard({
 
           const [name, standard, id, teacherName] = parts;
 
-          // Validate student id
           if (!/^\d{5}$/.test(id)) {
             errors.push(`Row ${index + 2}: Student ID must be 5 digits`);
             return;
           }
 
-          // Check if teacher exists, if not, add to newTeachers
           if (!teachers.includes(teacherName) && !newTeachers.includes(teacherName)) {
             newTeachers.push(teacherName);
           }
 
-          // Check if student exists (by id) in current students or in newStudents we are adding
           if (students.some((s) => s.id === id) || newStudents.some((s) => s.id === id)) {
-            // Skip duplicate student
             return;
           }
 
-          // Add student
           newStudents.push({
             id,
             name,
             standard: standard || undefined,
           });
 
-          // Assign student to teacher
           if (!newAssignments[teacherName]) {
             newAssignments[teacherName] = [];
           }
@@ -208,12 +210,10 @@ export default function AdminDashboard({
           return;
         }
 
-        // Update state
         setTeachers((prev) => [...prev, ...newTeachers]);
         setStudents((prev) => [...prev, ...newStudents]);
         setAssignments(newAssignments);
 
-        // Reset file input
         event.target.value = "";
       } catch (error) {
         setCsvError("Error processing CSV file");
@@ -550,7 +550,7 @@ export default function AdminDashboard({
                   <h2 className="text-xl font-semibold text-[#F1F1F1] mb-4" style={{ fontFamily: "'Open Sans', sans-serif" }}>
                     Add Student
                   </h2>
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
                     <input
                       type="text"
                       value={studentName}
@@ -576,6 +576,17 @@ export default function AdminDashboard({
                       maxLength={5}
                       style={{ fontFamily: "'Open Sans', sans-serif" }}
                     />
+                    <select
+                      value={studentTeacher}
+                      onChange={(e) => setStudentTeacher(e.target.value)}
+                      className="px-4 py-3 border border-[#2D2D2D] rounded-lg focus:ring-2 focus:ring-[#3A86FF] focus:border-[#3A86FF] transition-all duration-300 shadow-sm bg-[#121212] text-[#EAEAEA]"
+                      style={{ fontFamily: "'Open Sans', sans-serif" }}
+                    >
+                      <option value="">Assign Teacher</option>
+                      {teachers.map((t) => (
+                        <option key={t} value={t}>{t}</option>
+                      ))}
+                    </select>
                     <button
                       onClick={addStudent}
                       className="px-6 py-3 bg-gradient-to-r from-[#3A86FF] to-[#4361EE] text-[#F1F1F1] rounded-lg hover:brightness-110 transition-all duration-300 shadow-md hover:shadow-lg flex items-center justify-center gap-2 font-medium"

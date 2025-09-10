@@ -359,11 +359,10 @@ export default function AdminDashboard({
             role="tab"
             aria-selected={activeTab === "view"}
             onClick={() => setActiveTab("view")}
-            className={`px-6 py-3 font-medium text-sm rounded-t-lg transition-all duration-300 ${
-              activeTab === "view"
+            className={`px-6 py-3 font-medium text-sm rounded-t-lg transition-all duration-300 ${activeTab === "view"
                 ? "text-[#3A86FF] border-b-2 border-[#3A86FF] bg-[#1E1E1E]"
                 : "text-[#B0B0B0] hover:text-[#D1D1D1] hover:bg-[#2D2D2D]"
-            }`}
+              }`}
           >
             View Records
           </button>
@@ -371,11 +370,10 @@ export default function AdminDashboard({
             role="tab"
             aria-selected={activeTab === "manage"}
             onClick={() => setActiveTab("manage")}
-            className={`px-6 py-3 font-medium text-sm rounded-t-lg transition-all duration-300 ${
-              activeTab === "manage"
+            className={`px-6 py-3 font-medium text-sm rounded-t-lg transition-all duration-300 ${activeTab === "manage"
                 ? "text-[#3A86FF] border-b-2 border-[#3A86FF] bg-[#1E1E1E]"
                 : "text-[#B0B0B0] hover:text-[#D1D1D1] hover:bg-[#2D2D2D]"
-            }`}
+              }`}
           >
             Manage People
           </button>
@@ -557,80 +555,79 @@ export default function AdminDashboard({
               )}
               {/* Calendar Container */}
               {selectedStudent && (
-                      <div className="mt-8 bg-[#1E1E1E] rounded-xl p-6 border border-[#2D2D2D]">
-                        <h4 className="text-lg font-semibold text-[#F1F1F1] mb-4">Attendance Calendar</h4>
-                        <div className="flex items-center justify-between mb-3">
-                          <button
-                            className="px-3 py-1 border border-[#2D2D2D] rounded-lg text-[#EAEAEA] bg-[#1E1E1E] hover:bg-[#3A86FF]/20 hover:text-[#3A86FF] transition-colors duration-200"
-                            onClick={() => setCalendarDate(new Date(currentYear, currentMonth - 1, 1))}
-                            aria-label="Previous month"
+                <div className="mt-8 bg-[#1E1E1E] rounded-xl p-6 border border-[#2D2D2D]">
+                  <h4 className="text-lg font-semibold text-[#F1F1F1] mb-4">Attendance Calendar</h4>
+                  <div className="flex items-center justify-between mb-3">
+                    <button
+                      className="px-3 py-1 border border-[#2D2D2D] rounded-lg text-[#EAEAEA] bg-[#1E1E1E] hover:bg-[#3A86FF]/20 hover:text-[#3A86FF] transition-colors duration-200"
+                      onClick={() => setCalendarDate(new Date(currentYear, currentMonth - 1, 1))}
+                      aria-label="Previous month"
+                    >
+                      &#8592;
+                    </button>
+                    <span className="font-semibold text-[#EAEAEA]">
+                      {calendarDate.toLocaleString("default", { month: "long" })} {calendarDate.getFullYear()}
+                    </span>
+                    <button
+                      className="px-3 py-1 border border-[#2D2D2D] rounded-lg text-[#EAEAEA] bg-[#1E1E1E] hover:bg-[#3A86FF]/20 hover:text-[#3A86FF] transition-colors duration-200"
+                      onClick={() => setCalendarDate(new Date(currentYear, currentMonth + 1, 1))}
+                      aria-label="Next month"
+                    >
+                      &#8594;
+                    </button>
+                  </div>
+                  <table className="w-full text-[#EAEAEA]">
+                    <thead>
+                      <tr>
+                        {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
+                          <th
+                            key={d}
+                            className="py-2 text-xs font-semibold text-[#B0B0B0] uppercase border-b border-[#2D2D2D]"
+                            scope="col"
                           >
-                            &#8592;
-                          </button>
-                          <span className="font-semibold text-[#EAEAEA]">
-                            {calendarDate.toLocaleString("default", { month: "long" })} {calendarDate.getFullYear()}
-                          </span>
-                          <button
-                            className="px-3 py-1 border border-[#2D2D2D] rounded-lg text-[#EAEAEA] bg-[#1E1E1E] hover:bg-[#3A86FF]/20 hover:text-[#3A86FF] transition-colors duration-200"
-                            onClick={() => setCalendarDate(new Date(currentYear, currentMonth + 1, 1))}
-                            aria-label="Next month"
-                          >
-                            &#8594;
-                          </button>
-                        </div>
-                        <table className="w-full text-[#EAEAEA]">
-                          <thead>
-                            <tr>
-                              {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
-                                <th
-                                  key={d}
-                                  className="py-2 text-xs font-semibold text-[#B0B0B0] uppercase border-b border-[#2D2D2D]"
-                                  scope="col"
-                                >
-                                  {d}
-                                </th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {(() => {
-                              let day = 1 - startDay;
-                              const weeks: React.ReactElement[][] = [];
-                              for (let w = 0; w < 6 && day <= daysInMonth; w++) {
-                                const week: React.ReactElement[] = [];
-                                for (let d = 0; d < 7; d++, day++) {
-                                  const dateObj = new Date(currentYear, currentMonth, day);
-                                  const isCurrentMonth = dateObj.getMonth() === currentMonth;
-                                  const dateStr = dateObj.toISOString().slice(0, 10);
-                                  const status = attendanceByDate[dateStr];
-                                  week.push(
-                                    <td key={d} className="text-center p-1">
-                                      {isCurrentMonth && day > 0 && day <= daysInMonth ? (
-                                        <div
-                                          className={`w-full h-8 rounded-xl border font-semibold transition-colors duration-200 ${
-                                            status ? statusColor[status] : "bg-[#1E1E1E] border-[#2D2D2D] text-[#EAEAEA]"
-                                          }`}
-                                          title={status ? `${status.charAt(0).toUpperCase() + status.slice(1)}` : "No record"}
-                                        >
-                                          {day}
-                                        </div>
-                                      ) : (
-                                        <span className="w-full h-8 inline-block text-transparent"> </span>
-                                      )}
-                                    </td>
-                                  );
-                                }
-                                weeks.push(week);
-                              }
-                              return weeks.map((week, i) => (
-                                <tr key={i} className="border-b border-[#2D2D2D]">
-                                  {week}
-                                </tr>
-                              ));
-                            })()}
-                          </tbody>
-                        </table>
-                      </div>
+                            {d}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(() => {
+                        let day = 1 - startDay;
+                        const weeks: React.ReactElement[][] = [];
+                        for (let w = 0; w < 6 && day <= daysInMonth; w++) {
+                          const week: React.ReactElement[] = [];
+                          for (let d = 0; d < 7; d++, day++) {
+                            const dateObj = new Date(currentYear, currentMonth, day);
+                            const isCurrentMonth = dateObj.getMonth() === currentMonth;
+                            const dateStr = dateObj.toISOString().slice(0, 10);
+                            const status = attendanceByDate[dateStr];
+                            week.push(
+                              <td key={d} className="text-center p-1">
+                                {isCurrentMonth && day > 0 && day <= daysInMonth ? (
+                                  <div
+                                    className={`w-full h-8 rounded-xl border font-semibold transition-colors duration-200 ${status ? statusColor[status] : "bg-[#1E1E1E] border-[#2D2D2D] text-[#EAEAEA]"
+                                      }`}
+                                    title={status ? `${status.charAt(0).toUpperCase() + status.slice(1)}` : "No record"}
+                                  >
+                                    {day}
+                                  </div>
+                                ) : (
+                                  <span className="w-full h-8 inline-block text-transparent"> </span>
+                                )}
+                              </td>
+                            );
+                          }
+                          weeks.push(week);
+                        }
+                        return weeks.map((week, i) => (
+                          <tr key={i} className="border-b border-[#2D2D2D]">
+                            {week}
+                          </tr>
+                        ));
+                      })()}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </div>
           </div>
@@ -645,11 +642,10 @@ export default function AdminDashboard({
                 role="tab"
                 aria-selected={manageSubTab === "teachers"}
                 onClick={() => setManageSubTab("teachers")}
-                className={`px-6 py-3 font-medium text-sm rounded-t-lg transition-all duration-300 ${
-                  manageSubTab === "teachers"
+                className={`px-6 py-3 font-medium text-sm rounded-t-lg transition-all duration-300 ${manageSubTab === "teachers"
                     ? "text-[#3A86FF] border-b-2 border-[#3A86FF] bg-[#1E1E1E]"
                     : "text-[#B0B0B0] hover:text-[#D1D1D1] hover:bg-[#2D2D2D]"
-                }`}
+                  }`}
               >
                 Teachers
               </button>
@@ -657,11 +653,10 @@ export default function AdminDashboard({
                 role="tab"
                 aria-selected={manageSubTab === "students"}
                 onClick={() => setManageSubTab("students")}
-                className={`px-6 py-3 font-medium text-sm rounded-t-lg transition-all duration-300 ${
-                  manageSubTab === "students"
+                className={`px-6 py-3 font-medium text-sm rounded-t-lg transition-all duration-300 ${manageSubTab === "students"
                     ? "text-[#3A86FF] border-b-2 border-[#3A86FF] bg-[#1E1E1E]"
                     : "text-[#B0B0B0] hover:text-[#D1D1D1] hover:bg-[#2D2D2D]"
-                }`}
+                  }`}
               >
                 Students
               </button>
@@ -794,50 +789,67 @@ export default function AdminDashboard({
             {manageSubTab === "students" && (
               <div className="space-y-6">
                 {/* Add Student */}
-                <div className="bg-[#1E1E1E] rounded-xl p-6 border border-[#2D2D2D]">
+                <div className="bg-[#1E1E1E] rounded-xl p-4 sm:p-6 border border-[#2D2D2D]">
                   <h2 className="text-xl font-semibold text-[#F1F1F1] mb-4">Add Student</h2>
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    <input
-                      type="text"
-                      value={studentName}
-                      onChange={(e) => setStudentName(e.target.value)}
-                      className="flex-1 px-4 py-3 border border-[#2D2D2D] rounded-lg focus:ring-2 focus:ring-[#3A86FF] focus:border-[#3A86FF] transition-all duration-300 shadow-sm bg-[#121212] text-[#EAEAEA]"
-                      placeholder="Student Name"
-                      aria-label="Student name"
-                    />
-                    <input
-                      type="text"
-                      value={studentId}
-                      onChange={(e) => setStudentId(e.target.value)}
-                      className="flex-1 px-4 py-3 border border-[#2D2D2D] rounded-lg focus:ring-2 focus:ring-[#3A86FF] focus:border-[#3A86FF] transition-all duration-300 shadow-sm bg-[#121212] text-[#EAEAEA]"
-                      placeholder="5-digit ID"
-                      maxLength={5}
-                      aria-label="Student ID"
-                    />
-                    <input
-                      type="text"
-                      value={studentStandard}
-                      onChange={(e) => setStudentStandard(e.target.value)}
-                      className="flex-1 px-4 py-3 border border-[#2D2D2D] rounded-lg focus:ring-2 focus:ring-[#3A86FF] focus:border-[#3A86FF] transition-all duration-300 shadow-sm bg-[#121212] text-[#EAEAEA]"
-                      placeholder="Standard"
-                      aria-label="Student standard"
-                    />
-                    <select
-                      value={studentTeacher}
-                      onChange={(e) => setStudentTeacher(e.target.value)}
-                      className="flex-1 px-4 py-3 border border-[#2D2D2D] rounded-lg focus:ring-2 focus:ring-[#3A86FF] focus:border-[#3A86FF] transition-all duration-300 shadow-sm bg-[#121212] text-[#EAEAEA]"
-                      aria-label="Assign teacher"
-                    >
-                      <option value="">Assign Teacher</option>
-                      {teachers.map((t) => (
-                        <option key={t} value={t}>
-                          {t}
-                        </option>
-                      ))}
-                    </select>
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    <div className="flex-1">
+                      <input
+                        type="text"
+                        value={studentName}
+                        onChange={(e) => setStudentName(e.target.value)}
+                        className="w-full px-4 py-3 border border-[#2D2D2D] rounded-lg focus:ring-2 focus:ring-[#3A86FF] focus:border-[#3A86FF] transition-all duration-300 shadow-sm bg-[#121212] text-[#EAEAEA]"
+                        placeholder="Student Name"
+                        aria-label="Student name"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <input
+                        type="text"
+                        value={studentId}
+                        onChange={(e) => {
+                          setStudentId(e.target.value);
+                          if (e.target.value && !/^\d{5}$/.test(e.target.value)) {
+                            setCsvError("Student ID must be 5 digits");
+                          } else {
+                            setCsvError(null);
+                          }
+                        }}
+                        className="w-full px-4 py-3 border border-[#2D2D2D] rounded-lg focus:ring-2 focus:ring-[#3A86FF] focus:border-[#3A86FF] transition-all duration-300 shadow-sm bg-[#121212] text-[#EAEAEA]"
+                        placeholder="5-digit ID"
+                        maxLength={5}
+                        aria-label="Student ID"
+                      />
+                      {csvError && <p className="text-[#EF9A9A] text-sm mt-1">{csvError}</p>}
+                    </div>
+                    <div className="flex-1">
+                      <input
+                        type="text"
+                        value={studentStandard}
+                        onChange={(e) => setStudentStandard(e.target.value)}
+                        className="w-full px-4 py-3 border border-[#2D2D2D] rounded-lg focus:ring-2 focus:ring-[#3A86FF] focus:border-[#3A86FF] transition-all duration-300 shadow-sm bg-[#121212] text-[#EAEAEA]"
+                        placeholder="Standard"
+                        aria-label="Student standard"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <select
+                        value={studentTeacher}
+                        onChange={(e) => setStudentTeacher(e.target.value)}
+                        className="w-full px-4 py-3 border border-[#2D2D2D] rounded-lg focus:ring-2 focus:ring-[#3A86FF] focus:border-[#3A86FF] transition-all duration-300 shadow-sm bg-[#121212] text-[#EAEAEA]"
+                        aria-label="Assign teacher"
+                      >
+                        <option value="">Assign Teacher</option>
+                        {teachers.map((t) => (
+                          <option key={t} value={t}>
+                            {t}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                     <button
                       onClick={addStudent}
                       className="px-6 py-3 bg-[#3A86FF] text-[#F1F1F1] rounded-lg hover:bg-[#4361EE] transition-all duration-300 shadow-md hover:shadow-lg flex items-center justify-center gap-2 font-medium"
+                      aria-label="Add student"
                     >
                       <svg
                         xmlns="http://www.w3.org/2000/svg"

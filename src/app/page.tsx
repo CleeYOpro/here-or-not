@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import AdminDashboard from "./admin";
 import TeacherDashboard from "./teacher";
 
@@ -18,12 +18,11 @@ export type AttendanceMap = Record<
 export default function LoginPage() {
   const [role, setRole] = useState<"admin" | "teacher" | null>(null);
   const [currentTeacher, setCurrentTeacher] = useState<string | null>(null);
-
-  // Admin login states
   const [adminUsername, setAdminUsername] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
   const [error, setError] = useState("");
   const [isAdminAuthed, setIsAdminAuthed] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Hardcoded admin credentials
   const ADMIN_CREDENTIALS = {
@@ -36,6 +35,14 @@ export default function LoginPage() {
   const [students, setStudents] = useState<Student[]>([]);
   const [assignments, setAssignments] = useState<Assignments>({});
   const [attendance, setAttendance] = useState<AttendanceMap>({});
+
+  // Clear toast after 3 seconds
+  useEffect(() => {
+    if (toastMessage) {
+      const timer = setTimeout(() => setToastMessage(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [toastMessage]);
 
   const goBack = () => {
     setRole(null);
@@ -54,8 +61,10 @@ export default function LoginPage() {
     ) {
       setIsAdminAuthed(true);
       setError("");
+      setToastMessage("Admin login successful");
     } else {
       setError("Invalid username or password");
+      setToastMessage("Admin login failed");
     }
   };
 
@@ -91,23 +100,48 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#121212] flex items-center justify-center p-0">
+    <div className="min-h-screen bg-[#121212] flex items-center justify-center p-4 sm:p-6">
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div
+          className="fixed top-4 right-4 bg-[#3A86FF] text-[#F1F1F1] px-4 py-2 rounded-lg shadow-lg z-50 animate-fade-in"
+          role="alert"
+          aria-live="polite"
+        >
+          {toastMessage}
+        </div>
+      )}
+
       {/* Welcome and role selection */}
       {!role && (
-        <div className="w-full max-w-2xl mx-auto flex flex-col items-center justify-center gap-10 py-16">
-          <h1 className="text-4xl font-bold text-[#F1F1F1] mb-2">
+        <div className="w-11/12 max-w-2xl mx-auto flex flex-col items-center justify-center gap-12 py-16">
+          <h1 className="text-3xl sm:text-4xl font-bold text-[#F1F1F1] text-center">
             Hi, welcome to <span className="text-[#3A86FF]">rollCALL!</span>
           </h1>
-          <div className="flex gap-6 mt-4">
+          <div className="flex flex-col sm:flex-row gap-6 w-full sm:w-auto">
             <button
-              className="px-8 py-4 bg-[#3A86FF] text-[#F1F1F1] rounded-xl font-semibold text-lg shadow-lg hover:bg-[#4361EE] transition-colors duration-200"
+              className="w-full sm:w-auto px-6 py-3 bg-[#3A86FF] text-[#F1F1F1] rounded-lg font-semibold text-lg shadow-lg hover:bg-[#4361EE] transition-colors duration-200 focus:ring-2 focus:ring-[#3A86FF] focus:outline-none"
               onClick={() => setRole("admin")}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setRole("admin");
+                }
+              }}
+              aria-label="Sign in as Admin"
             >
               Sign in as Admin
             </button>
             <button
-              className="px-8 py-4 bg-[#181F2A] text-[#F1F1F1] rounded-xl font-semibold text-lg shadow-lg hover:bg-[#3A86FF] hover:text-[#F1F1F1] transition-colors duration-200"
+              className="w-full sm:w-auto px-6 py-3 bg-[#181F2A] text-[#F1F1F1] rounded-lg font-semibold text-lg shadow-lg hover:bg-[#3A86FF] hover:text-[#F1F1F1] transition-colors duration-200 focus:ring-2 focus:ring-[#3A86FF] focus:outline-none"
               onClick={() => setRole("teacher")}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setRole("teacher");
+                }
+              }}
+              aria-label="Sign in as Teacher"
             >
               Sign in as Teacher
             </button>
@@ -117,14 +151,14 @@ export default function LoginPage() {
 
       {/* Admin login form */}
       {role === "admin" && !isAdminAuthed && (
-        <div className="w-full max-w-md mx-auto bg-[#181F2A] rounded-2xl shadow-2xl p-10 flex flex-col gap-8">
-          <div className="mb-2">
-            <h2 className="text-3xl font-bold text-[#F1F1F1] mb-1">
+        <div className="w-11/12 max-w-md mx-auto bg-[#181F2A] rounded-xl p-8 flex flex-col gap-8 shadow-lg">
+          <div>
+            <h2 className="text-2xl sm:text-3xl font-bold text-[#F1F1F1] mb-1">
               Welcome back
             </h2>
-            <p className="text-[#EAEAEA] text-lg">Login to your admin account</p>
+            <p className="text-[#EAEAEA] text-xl">Login to your admin account</p>
           </div>
-          <form onSubmit={handleAdminLogin} className="flex flex-col gap-6">
+          <form onSubmit={handleAdminLogin} className="flex flex-col gap-8">
             <div className="flex flex-col gap-2">
               <label htmlFor="username" className="text-[#F1F1F1] font-semibold">
                 Email
@@ -134,9 +168,10 @@ export default function LoginPage() {
                 type="text"
                 value={adminUsername}
                 onChange={(e) => setAdminUsername(e.target.value)}
-                className="px-4 py-3 rounded-lg bg-[#121212] text-[#F1F1F1] border border-[#333] focus:border-[#3A86FF] focus:outline-none text-lg placeholder-[#888]"
+                className="w-full px-4 py-3 rounded-lg bg-[#121212] text-[#F1F1F1] border border-[#333] focus:border-[#3A86FF] focus:ring-2 focus:ring-[#3A86FF] focus:outline-none text-base placeholder-[#888]"
                 placeholder="admin@example.com"
                 required
+                aria-describedby={error ? "username-error" : undefined}
               />
             </div>
             <div className="flex flex-col gap-2">
@@ -144,31 +179,54 @@ export default function LoginPage() {
                 <label htmlFor="password" className="text-[#F1F1F1] font-semibold">
                   Password
                 </label>
-                <span className="text-[#EAEAEA] text-sm cursor-pointer hover:underline">
+                <button
+                  type="button"
+                  className="text-[#EAEAEA] text-sm hover:underline focus:ring-2 focus:ring-[#3A86FF] focus:outline-none"
+                  onClick={() => alert("Password reset not implemented")}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      alert("Password reset not implemented");
+                    }
+                  }}
+                  role="button"
+                  aria-label="Forgot your password"
+                >
                   Forgot your password?
-                </span>
+                </button>
               </div>
               <input
                 id="password"
                 type="password"
                 value={adminPassword}
                 onChange={(e) => setAdminPassword(e.target.value)}
-                className="px-4 py-3 rounded-lg bg-[#121212] text-[#F1F1F1] border border-[#333] focus:border-[#3A86FF] focus:outline-none text-lg placeholder-[#888]"
+                className="w-full px-4 py-3 rounded-lg bg-[#121212] text-[#F1F1F1] border border-[#333] focus:border-[#3A86FF] focus:ring-2 focus:ring-[#3A86FF] focus:outline-none text-base placeholder-[#888]"
                 placeholder="Enter password"
                 required
+                aria-describedby={error ? "password-error" : undefined}
               />
             </div>
-            {error && <p className="text-[#ff4d4f] text-sm font-semibold">{error}</p>}
+            {error && (
+              <p
+                id="login-error"
+                className="text-base text-[#ff4d4f] font-semibold bg-[#451A1A] px-3 py-2 rounded-lg"
+                role="alert"
+              >
+                {error}
+              </p>
+            )}
             <button
               type="submit"
-              className="w-full py-3 rounded-xl bg-[#F1F1F1] text-[#121212] font-bold text-lg shadow hover:bg-[#EAEAEA] transition-colors duration-200"
+              className="w-full px-6 py-3 rounded-lg bg-[#F1F1F1] text-[#121212] font-bold text-lg shadow hover:bg-[#EAEAEA] transition-colors duration-200 focus:ring-2 focus:ring-[#3A86FF] focus:outline-none"
+              aria-label="Submit admin login"
             >
               Login
             </button>
             <button
               type="button"
               onClick={goBack}
-              className="w-full py-3 rounded-xl bg-[#181F2A] text-[#F1F1F1] font-bold text-lg border border-[#3A86FF] shadow hover:bg-[#3A86FF] hover:text-[#F1F1F1] transition-colors duration-200"
+              className="w-full px-6 py-3 rounded-lg bg-[#181F2A] text-[#F1F1F1] font-bold text-lg border border-[#3A86FF] shadow hover:bg-[#3A86FF] hover:text-[#F1F1F1] transition-colors duration-200 focus:ring-2 focus:ring-[#3A86FF] focus:outline-none"
+              aria-label="Back to role selection"
             >
               Back
             </button>
@@ -178,20 +236,33 @@ export default function LoginPage() {
 
       {/* Teacher selection */}
       {role === "teacher" && (
-        <div className="w-full max-w-md mx-auto bg-[#181F2A] rounded-2xl shadow-2xl p-10 flex flex-col gap-8">
-          <div className="mb-2">
-            <h2 className="text-2xl font-bold text-[#F1F1F1] mb-1">Select Teacher</h2>
-            <p className="text-[#EAEAEA] text-lg">Choose your name to continue</p>
+        <div className="w-11/12 max-w-md mx-auto bg-[#181F2A] rounded-xl p-8 flex flex-col gap-8 shadow-lg">
+          <div>
+            <h2 className="text-2xl sm:text-3xl font-bold text-[#F1F1F1] mb-1">
+              Select Teacher
+            </h2>
+            <p className="text-[#EAEAEA] text-xl">Choose your name to continue</p>
           </div>
           {teachers.length === 0 ? (
-            <p className="text-[#EAEAEA] text-center">No teachers added yet.</p>
+            <p className="text-[#EAEAEA] text-center text-base">No teachers added yet.</p>
           ) : (
-            <div className="flex flex-wrap gap-3 justify-center">
+            <div className="max-h-60 overflow-y-auto flex flex-wrap gap-3 justify-center">
               {teachers.map((t) => (
                 <button
                   key={t}
-                  className="px-4 py-2 bg-[#3A86FF] text-[#F1F1F1] rounded-lg font-medium hover:bg-[#4361EE] transition-all duration-200"
-                  onClick={() => setCurrentTeacher(t)}
+                  className="px-6 py-3 bg-[#3A86FF] text-[#F1F1F1] rounded-lg font-medium text-base hover:bg-[#4361EE] transition-all duration-200 focus:ring-2 focus:ring-[#3A86FF] focus:outline-none"
+                  onClick={() => {
+                    setCurrentTeacher(t);
+                    setToastMessage(`Selected teacher: ${t}`);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setCurrentTeacher(t);
+                      setToastMessage(`Selected teacher: ${t}`);
+                    }
+                  }}
+                  aria-label={`Select teacher ${t}`}
                 >
                   {t}
                 </button>
@@ -200,12 +271,30 @@ export default function LoginPage() {
           )}
           <button
             onClick={goBack}
-            className="w-full py-3 rounded-xl bg-[#181F2A] text-[#F1F1F1] font-bold text-lg border border-[#3A86FF] shadow hover:bg-[#3A86FF] hover:text-[#F1F1F1] transition-colors duration-200"
+            className="w-full px-6 py-3 rounded-lg bg-[#181F2A] text-[#F1F1F1] font-bold text-lg border border-[#3A86FF] shadow hover:bg-[#3A86FF] hover:text-[#F1F1F1] transition-colors duration-200 focus:ring-2 focus:ring-[#3A86FF] focus:outline-none"
+            aria-label="Back to role selection"
           >
             Back
           </button>
         </div>
       )}
+
+      {/* Inline CSS for toast animation */}
+      <style jsx>{`
+        @keyframes fade-in {
+          from {
+            opacity: 0;
+            transform: translateY(-10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        .animate-fade-in {
+          animation: fade-in 0.3s ease-out;
+        }
+      `}</style>
     </div>
   );
 }

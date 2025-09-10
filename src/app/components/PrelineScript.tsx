@@ -14,7 +14,9 @@ export default function PrelineScript() {
         (window as any).$ = $;
         (window as any).jQuery = $;
         import("datatables.net").then(() => {
-          (window as any).DataTable = ($.fn as any).dataTable;
+          if ($.fn && ($.fn as any).dataTable) {
+            (window as any).DataTable = ($.fn as any).dataTable;
+          }
         });
       });
       import("lodash").then((_mod) => {

@@ -116,7 +116,7 @@ export default function LoginPage() {
       {!role && (
         <div className="w-11/12 max-w-2xl mx-auto flex flex-col items-center justify-center gap-12 py-16">
           <h1 className="text-3xl sm:text-4xl font-bold text-[#F1F1F1] text-center">
-            Hi, welcome to <span className="text-[#3A86FF]">rollCALL!</span>
+            Hi, welcome to <span className="text-[#3A86FF]">rolecaller!</span>
           </h1>
           <div className="flex flex-col sm:flex-row gap-6 w-full sm:w-auto">
             <button

@@ -6,9 +6,10 @@ import TeacherDashboard from "./teacher";
 // Shared types
 export type AttendanceStatus = "present" | "absent" | "late";
 export type Student = { id: string; name: string; standard?: string };
-export type Assignments = Record<string, string[]>; // teacher -> [studentId]
+export type Teacher = { name: string; username: string; password: string };
+export type Assignments = Record<string, string[]>; // teacher username -> [studentId]
 export type AttendanceMap = Record<
-  string, // teacher
+  string, // teacher username
   Record<
     string, // YYYY-MM-DD date
     Record<string, AttendanceStatus> // studentId -> status
@@ -17,26 +18,26 @@ export type AttendanceMap = Record<
 
 export default function LoginPage() {
   const [role, setRole] = useState<"admin" | "teacher" | null>(null);
-  const [currentTeacher, setCurrentTeacher] = useState<string | null>(null);
+  const [teacherLoginUsername, setTeacherLoginUsername] = useState("");
+  const [teacherLoginPassword, setTeacherLoginPassword] = useState("");
+  const [isTeacherAuthed, setIsTeacherAuthed] = useState(false);
+  const [authedTeacher, setAuthedTeacher] = useState<Teacher | null>(null);
   const [adminUsername, setAdminUsername] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
   const [error, setError] = useState("");
   const [isAdminAuthed, setIsAdminAuthed] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Hardcoded admin credentials
   const ADMIN_CREDENTIALS = {
     username: "admin",
     password: "ClassTrack2025",
   };
 
-  // Global in-memory app state
-  const [teachers, setTeachers] = useState<string[]>([]);
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [assignments, setAssignments] = useState<Assignments>({});
   const [attendance, setAttendance] = useState<AttendanceMap>({});
 
-  // Clear toast after 3 seconds
   useEffect(() => {
     if (toastMessage) {
       const timer = setTimeout(() => setToastMessage(null), 3000);
@@ -46,7 +47,6 @@ export default function LoginPage() {
 
   const goBack = () => {
     setRole(null);
-    setCurrentTeacher(null);
     setAdminUsername("");
     setAdminPassword("");
     setError("");
@@ -68,7 +68,7 @@ export default function LoginPage() {
     }
   };
 
-  // Render admin dashboard if logged in
+  // Admin dashboard
   if (role === "admin" && isAdminAuthed) {
     return (
       <AdminDashboard
@@ -85,17 +85,35 @@ export default function LoginPage() {
     );
   }
 
-  // Render teacher dashboard if teacher selected
-  if (role === "teacher" && currentTeacher) {
+  // Teacher dashboard
+  if (role === "teacher" && authedTeacher && isTeacherAuthed) {
     return (
-      <TeacherDashboard
-        teacher={currentTeacher}
-        goBack={goBack}
-        students={students}
-        assignments={assignments}
-        attendance={attendance}
-        setAttendance={setAttendance}
-      />
+      <div className="min-h-screen bg-[#121212] p-4 sm:p-6">
+        <div className="flex justify-end mb-6">
+          <button
+            onClick={() => {
+              setIsTeacherAuthed(false);
+              setAuthedTeacher(null);
+              setTeacherLoginUsername("");
+              setTeacherLoginPassword("");
+              setError("");
+              setRole(null);
+            }}
+            className="px-6 py-3 rounded-xl bg-gradient-to-r from-[#FF6B6B] to-[#D32F2F] text-white font-bold text-lg shadow-lg hover:scale-105 hover:from-[#FF7F7F] hover:to-[#C62828] transition-transform duration-200 focus:ring-4 focus:ring-[#FF6B6B] focus:outline-none"
+            aria-label="Sign out"
+          >
+            Sign Out
+          </button>
+        </div>
+        <TeacherDashboard
+          teacher={authedTeacher.username}
+          goBack={goBack}
+          students={students}
+          assignments={assignments}
+          attendance={attendance}
+          setAttendance={setAttendance}
+        />
+      </div>
     );
   }
 
@@ -104,7 +122,7 @@ export default function LoginPage() {
       {/* Toast Notification */}
       {toastMessage && (
         <div
-          className="fixed top-4 right-4 bg-[#3A86FF] text-[#F1F1F1] px-4 py-2 rounded-lg shadow-lg z-50 animate-fade-in"
+          className="fixed top-4 right-4 bg-gradient-to-r from-[#3A86FF] to-[#4361EE] text-white px-4 py-2 rounded-lg shadow-lg z-50 animate-fade-in font-semibold"
           role="alert"
           aria-live="polite"
         >
@@ -112,35 +130,23 @@ export default function LoginPage() {
         </div>
       )}
 
-      {/* Welcome and role selection */}
+      {/* Role selection */}
       {!role && (
         <div className="w-11/12 max-w-2xl mx-auto flex flex-col items-center justify-center gap-12 py-16">
-          <h1 className="text-3xl sm:text-4xl font-bold text-[#F1F1F1] text-center">
+          <h1 className="text-3xl sm:text-4xl font-bold text-white text-center">
             Hi, welcome to <span className="text-[#3A86FF]">rolecaller!</span>
           </h1>
           <div className="flex flex-col sm:flex-row gap-6 w-full sm:w-auto">
             <button
-              className="w-full sm:w-auto px-6 py-3 bg-[#3A86FF] text-[#F1F1F1] rounded-lg font-semibold text-lg shadow-lg hover:bg-[#4361EE] transition-colors duration-200 focus:ring-2 focus:ring-[#3A86FF] focus:outline-none"
+              className="w-full sm:w-auto px-6 py-3 bg-[#3A86FF] text-white rounded-xl font-semibold text-lg shadow-lg hover:bg-[#4361EE] transition-colors duration-200 focus:ring-2 focus:ring-[#3A86FF] focus:outline-none"
               onClick={() => setRole("admin")}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  setRole("admin");
-                }
-              }}
               aria-label="Sign in as Admin"
             >
               Sign in as Admin
             </button>
             <button
-              className="w-full sm:w-auto px-6 py-3 bg-[#181F2A] text-[#F1F1F1] rounded-lg font-semibold text-lg shadow-lg hover:bg-[#3A86FF] hover:text-[#F1F1F1] transition-colors duration-200 focus:ring-2 focus:ring-[#3A86FF] focus:outline-none"
+              className="w-full sm:w-auto px-6 py-3 bg-[#181F2A] text-white rounded-xl font-semibold text-lg shadow-lg hover:bg-[#3A86FF] hover:text-white transition-colors duration-200 focus:ring-2 focus:ring-[#3A86FF] focus:outline-none"
               onClick={() => setRole("teacher")}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  setRole("teacher");
-                }
-              }}
               aria-label="Sign in as Teacher"
             >
               Sign in as Teacher
@@ -149,84 +155,49 @@ export default function LoginPage() {
         </div>
       )}
 
-      {/* Admin login form */}
+      {/* Admin login */}
       {role === "admin" && !isAdminAuthed && (
-        <div className="w-11/12 max-w-md mx-auto bg-[#181F2A] rounded-xl p-8 flex flex-col gap-8 shadow-lg">
+        <div className="w-11/12 max-w-md mx-auto bg-[#1C1C1E] rounded-xl p-8 flex flex-col gap-6 shadow-lg">
           <div>
-            <h2 className="text-2xl sm:text-3xl font-bold text-[#F1F1F1] mb-1">
+            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-1">
               Welcome back
             </h2>
-            <p className="text-[#EAEAEA] text-xl">Login to your admin account</p>
+            <p className="text-[#EAEAEA] text-lg">Login to your admin account</p>
           </div>
-          <form onSubmit={handleAdminLogin} className="flex flex-col gap-8">
-            <div className="flex flex-col gap-2">
-              <label htmlFor="username" className="text-[#F1F1F1] font-semibold">
-                Email
-              </label>
-              <input
-                id="username"
-                type="text"
-                value={adminUsername}
-                onChange={(e) => setAdminUsername(e.target.value)}
-                className="w-full px-4 py-3 rounded-lg bg-[#121212] text-[#F1F1F1] border border-[#333] focus:border-[#3A86FF] focus:ring-2 focus:ring-[#3A86FF] focus:outline-none text-base placeholder-[#888]"
-                placeholder="admin@example.com"
-                required
-                aria-describedby={error ? "username-error" : undefined}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <div className="flex justify-between items-center">
-                <label htmlFor="password" className="text-[#F1F1F1] font-semibold">
-                  Password
-                </label>
-                <button
-                  type="button"
-                  className="text-[#EAEAEA] text-sm hover:underline focus:ring-2 focus:ring-[#3A86FF] focus:outline-none"
-                  onClick={() => alert("Password reset not implemented")}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      alert("Password reset not implemented");
-                    }
-                  }}
-                  role="button"
-                  aria-label="Forgot your password"
-                >
-                  Forgot your password?
-                </button>
-              </div>
-              <input
-                id="password"
-                type="password"
-                value={adminPassword}
-                onChange={(e) => setAdminPassword(e.target.value)}
-                className="w-full px-4 py-3 rounded-lg bg-[#121212] text-[#F1F1F1] border border-[#333] focus:border-[#3A86FF] focus:ring-2 focus:ring-[#3A86FF] focus:outline-none text-base placeholder-[#888]"
-                placeholder="Enter password"
-                required
-                aria-describedby={error ? "password-error" : undefined}
-              />
-            </div>
+          <form onSubmit={handleAdminLogin} className="flex flex-col gap-6">
+            <input
+              id="username"
+              type="text"
+              value={adminUsername}
+              onChange={(e) => setAdminUsername(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl bg-[#121212] text-white border border-[#333] focus:border-[#3A86FF] focus:ring-2 focus:ring-[#3A86FF] focus:outline-none text-base placeholder-[#888]"
+              placeholder="admin@example.com"
+              required
+            />
+            <input
+              id="password"
+              type="password"
+              value={adminPassword}
+              onChange={(e) => setAdminPassword(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl bg-[#121212] text-white border border-[#333] focus:border-[#3A86FF] focus:ring-2 focus:ring-[#3A86FF] focus:outline-none text-base placeholder-[#888]"
+              placeholder="Enter password"
+              required
+            />
             {error && (
-              <p
-                id="login-error"
-                className="text-base text-[#ff4d4f] font-semibold bg-[#451A1A] px-3 py-2 rounded-lg"
-                role="alert"
-              >
+              <p className="text-[#ff4d4f] font-semibold bg-[#451A1A] px-3 py-2 rounded-lg" role="alert">
                 {error}
               </p>
             )}
             <button
               type="submit"
-              className="w-full px-6 py-3 rounded-lg bg-[#F1F1F1] text-[#121212] font-bold text-lg shadow hover:bg-[#EAEAEA] transition-colors duration-200 focus:ring-2 focus:ring-[#3A86FF] focus:outline-none"
-              aria-label="Submit admin login"
+              className="w-full px-6 py-3 rounded-xl bg-[#3A86FF] text-white font-bold text-lg shadow-lg hover:bg-[#4361EE] transition-colors duration-200 focus:ring-2 focus:ring-[#3A86FF] focus:outline-none"
             >
               Login
             </button>
             <button
               type="button"
               onClick={goBack}
-              className="w-full px-6 py-3 rounded-lg bg-[#181F2A] text-[#F1F1F1] font-bold text-lg border border-[#3A86FF] shadow hover:bg-[#3A86FF] hover:text-[#F1F1F1] transition-colors duration-200 focus:ring-2 focus:ring-[#3A86FF] focus:outline-none"
-              aria-label="Back to role selection"
+              className="w-full px-6 py-3 rounded-xl bg-[#181F2A] text-white font-bold text-lg border border-[#3A86FF] shadow-lg hover:bg-[#3A86FF] hover:text-white transition-colors duration-200 focus:ring-2 focus:ring-[#3A86FF] focus:outline-none"
             >
               Back
             </button>
@@ -234,52 +205,70 @@ export default function LoginPage() {
         </div>
       )}
 
-      {/* Teacher selection */}
+      {/* Teacher login */}
       {role === "teacher" && (
-        <div className="w-11/12 max-w-md mx-auto bg-[#181F2A] rounded-xl p-8 flex flex-col gap-8 shadow-lg">
+        <div className="w-11/12 max-w-md mx-auto bg-[#1C1C1E] rounded-xl p-8 flex flex-col gap-6 shadow-lg">
           <div>
-            <h2 className="text-2xl sm:text-3xl font-bold text-[#F1F1F1] mb-1">
-              Select Teacher
-            </h2>
-            <p className="text-[#EAEAEA] text-xl">Choose your name to continue</p>
+            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-1">Teacher Login</h2>
+            <p className="text-[#EAEAEA] text-lg">Enter your username and password</p>
           </div>
-          {teachers.length === 0 ? (
-            <p className="text-[#EAEAEA] text-center text-base">No teachers added yet.</p>
-          ) : (
-            <div className="max-h-60 overflow-y-auto flex flex-wrap gap-3 justify-center">
-              {teachers.map((t) => (
-                <button
-                  key={t}
-                  className="px-6 py-3 bg-[#3A86FF] text-[#F1F1F1] rounded-lg font-medium text-base hover:bg-[#4361EE] transition-all duration-200 focus:ring-2 focus:ring-[#3A86FF] focus:outline-none"
-                  onClick={() => {
-                    setCurrentTeacher(t);
-                    setToastMessage(`Selected teacher: ${t}`);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      setCurrentTeacher(t);
-                      setToastMessage(`Selected teacher: ${t}`);
-                    }
-                  }}
-                  aria-label={`Select teacher ${t}`}
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
-          )}
-          <button
-            onClick={goBack}
-            className="w-full px-6 py-3 rounded-lg bg-[#181F2A] text-[#F1F1F1] font-bold text-lg border border-[#3A86FF] shadow hover:bg-[#3A86FF] hover:text-[#F1F1F1] transition-colors duration-200 focus:ring-2 focus:ring-[#3A86FF] focus:outline-none"
-            aria-label="Back to role selection"
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const found = teachers.find(
+                (t) => t.username === teacherLoginUsername && t.password === teacherLoginPassword
+              );
+              if (found) {
+                setIsTeacherAuthed(true);
+                setAuthedTeacher(found);
+                setError("");
+                setToastMessage("Teacher login successful");
+              } else {
+                setError("Invalid username or password");
+                setToastMessage("Teacher login failed");
+              }
+            }}
+            className="flex flex-col gap-4"
           >
-            Back
-          </button>
+            <input
+              type="text"
+              value={teacherLoginUsername}
+              onChange={(e) => setTeacherLoginUsername(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl bg-[#121212] text-white border border-[#333] focus:border-[#3A86FF] focus:ring-2 focus:ring-[#3A86FF] focus:outline-none text-base placeholder-[#888]"
+              placeholder="Username"
+              required
+            />
+            <input
+              type="password"
+              value={teacherLoginPassword}
+              onChange={(e) => setTeacherLoginPassword(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl bg-[#121212] text-white border border-[#333] focus:border-[#3A86FF] focus:ring-2 focus:ring-[#3A86FF] focus:outline-none text-base placeholder-[#888]"
+              placeholder="Password"
+              required
+            />
+            {error && (
+              <p className="text-[#ff4d4f] font-semibold bg-[#451A1A] px-3 py-2 rounded-lg" role="alert">
+                {error}
+              </p>
+            )}
+            <button
+              type="submit"
+              className="w-full px-6 py-3 rounded-xl bg-[#3A86FF] text-white font-bold text-lg shadow-lg hover:bg-[#4361EE] transition-colors duration-200 focus:ring-2 focus:ring-[#3A86FF] focus:outline-none"
+            >
+              Login
+            </button>
+            <button
+              type="button"
+              onClick={() => setRole(null)}
+              className="w-full px-6 py-3 rounded-xl bg-[#181F2A] text-white font-bold text-lg border border-[#3A86FF] shadow-lg hover:bg-[#3A86FF] hover:text-white transition-colors duration-200 focus:ring-2 focus:ring-[#3A86FF] focus:outline-none"
+            >
+              Back
+            </button>
+          </form>
         </div>
       )}
 
-      {/* Inline CSS for toast animation */}
+      {/* Toast animation */}
       <style jsx>{`
         @keyframes fade-in {
           from {

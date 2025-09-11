@@ -1,12 +1,13 @@
-
 "use client";
+
+import type { Teacher } from "./page";
 import { useMemo, useState, useRef } from "react";
 import type { AttendanceMap, Assignments, Student, AttendanceStatus } from "./page";
 
 interface AdminProps {
   goBack: () => void;
-  teachers: string[];
-  setTeachers: React.Dispatch<React.SetStateAction<string[]>>;
+  teachers: Teacher[];
+  setTeachers: React.Dispatch<React.SetStateAction<Teacher[]>>;
   students: Student[];
   setStudents: React.Dispatch<React.SetStateAction<Student[]>>;
   assignments: Assignments;
@@ -39,9 +40,11 @@ export default function AdminDashboard({
       late: 0,
     };
     teachers.forEach((teacher) => {
-      const map = attendance[teacher]?.[today] ?? {};
+      const map = attendance[teacher.username]?.[today] ?? {};
       Object.values(map).forEach((status) => {
-        summary[status] += 1;
+        if (status === "present" || status === "absent" || status === "late") {
+          summary[status] += 1;
+        }
       });
     });
     return summary;
@@ -114,13 +117,15 @@ export default function AdminDashboard({
   const studentTableRef = useRef<HTMLTableElement>(null);
   const teacherContainerRef = useRef<HTMLDivElement>(null);
 
-  // ...existing code...
+  // Ensure teachers is always Teacher[]
 
   const addTeacher = () => {
-    const name = newTeacher.trim();
-    if (!name || teachers.includes(name)) return;
-    setTeachers((prev) => [...prev, name]);
-    setNewTeacher("");
+  const name = newTeacher.trim();
+  if (!name || teachers.some(t => t.name === name)) return;
+  const username = name.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const password = Math.floor(1000000000 + Math.random() * 9000000000).toString();
+  setTeachers((prev) => [...prev, { name, username, password }]);
+  setNewTeacher("");
   };
 
   const saveTeacherEdit = () => {
@@ -128,25 +133,33 @@ export default function AdminDashboard({
       setEditingTeacher(null);
       return;
     }
-    if (teachers.includes(editingTeacherName.trim()) && editingTeacherName.trim() !== editingTeacher) {
+    if (teachers.some(t => t.name === editingTeacherName.trim()) && editingTeacherName.trim() !== editingTeacher) {
       return; // Prevent duplicate names
     }
     setTeachers((prev) =>
-      prev.map((t) => (t === editingTeacher ? editingTeacherName.trim() : t))
+      prev.map((t) =>
+        t.name === editingTeacher
+          ? { ...t, name: editingTeacherName.trim(), username: editingTeacherName.trim().toLowerCase().replace(/[^a-z0-9]/g, "") }
+          : t
+      )
     );
     setAssignments((prev) => {
       const newAssignments = { ...prev };
-      if (newAssignments[editingTeacher]) {
-        newAssignments[editingTeacherName.trim()] = newAssignments[editingTeacher];
-        delete newAssignments[editingTeacher];
+      const oldUsername = editingTeacher.toLowerCase().replace(/[^a-z0-9]/g, "");
+      const newUsername = editingTeacherName.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+      if (newAssignments[oldUsername]) {
+        newAssignments[newUsername] = newAssignments[oldUsername];
+        delete newAssignments[oldUsername];
       }
       return newAssignments;
     });
     setAttendance((prev) => {
       const newAttendance = { ...prev };
-      if (newAttendance[editingTeacher]) {
-        newAttendance[editingTeacherName.trim()] = newAttendance[editingTeacher];
-        delete newAttendance[editingTeacher];
+      const oldUsername = editingTeacher.toLowerCase().replace(/[^a-z0-9]/g, "");
+      const newUsername = editingTeacherName.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+      if (newAttendance[oldUsername]) {
+        newAttendance[newUsername] = newAttendance[oldUsername];
+        delete newAttendance[oldUsername];
       }
       return newAttendance;
     });
@@ -155,15 +168,17 @@ export default function AdminDashboard({
   };
 
   const deleteTeacher = (teacherName: string) => {
-    setTeachers((prev) => prev.filter((t) => t !== teacherName));
+    setTeachers((prev) => prev.filter((t) => t.name !== teacherName));
     setAssignments((prev) => {
       const newAssignments = { ...prev };
-      delete newAssignments[teacherName];
+      const username = teacherName.toLowerCase().replace(/[^a-z0-9]/g, "");
+      delete newAssignments[username];
       return newAssignments;
     });
     setAttendance((prev) => {
       const newAttendance = { ...prev };
-      delete newAttendance[teacherName];
+      const username = teacherName.toLowerCase().replace(/[^a-z0-9]/g, "");
+      delete newAttendance[username];
       return newAttendance;
     });
   };
@@ -247,7 +262,7 @@ export default function AdminDashboard({
           return;
         }
         const dataLines = lines.slice(1);
-        const newTeachers: string[] = [];
+  const newTeachers: Teacher[] = [];
         const newStudents: Student[] = [];
         const newAssignments: Assignments = { ...assignments };
         const errors: string[] = [];
@@ -265,15 +280,18 @@ export default function AdminDashboard({
           if (students.some((s) => s.id === id) || newStudents.some((s) => s.id === id)) {
             return;
           }
-          if (!teachers.includes(teacherName) && !newTeachers.includes(teacherName)) {
-            newTeachers.push(teacherName);
+          if (!teachers.some(t => t.name === teacherName) && !newTeachers.some(t => t.name === teacherName)) {
+            const username = teacherName.toLowerCase().replace(/[^a-z0-9]/g, "");
+            const password = Math.floor(1000000000 + Math.random() * 9000000000).toString();
+            newTeachers.push({ name: teacherName, username, password });
           }
           newStudents.push({ id, name, standard: standard || undefined });
-          if (!newAssignments[teacherName]) {
-            newAssignments[teacherName] = [];
+          const username = teacherName.toLowerCase().replace(/[^a-z0-9]/g, "");
+          if (!newAssignments[username]) {
+            newAssignments[username] = [];
           }
-          if (!newAssignments[teacherName].includes(id)) {
-            newAssignments[teacherName].push(id);
+          if (!newAssignments[username].includes(id)) {
+            newAssignments[username].push(id);
           }
         });
         if (errors.length > 0) {
@@ -644,18 +662,6 @@ export default function AdminDashboard({
                       onClick={addTeacher}
                       className="px-6 py-3 bg-[#3A86FF] text-[#F1F1F1] rounded-lg hover:bg-[#4361EE] transition-all duration-300 shadow-md hover:shadow-lg flex items-center justify-center gap-2 font-medium"
                     >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-5 w-5"
-                        viewBox="0 0 20 20"
-                        fill="currentColor"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
                       Add Teacher
                     </button>
                   </div>
@@ -672,74 +678,24 @@ export default function AdminDashboard({
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       {teachers.map((t) => (
                         <div
-                          key={t}
+                          key={t.username}
                           className="border border-[#3A3A3A] rounded-lg p-5 hover:shadow-md transition-all duration-300 bg-[#1E1E1E]"
                         >
-                          {editingTeacher === t ? (
-                            <div className="flex flex-col gap-2">
-                              <input
-                                type="text"
-                                value={editingTeacherName}
-                                onChange={(e) => setEditingTeacherName(e.target.value)}
-                                className="px-4 py-2 border border-[#2D2D2D] rounded-lg bg-[#121212] text-[#EAEAEA] focus:ring-2 focus:ring-[#3A86FF]"
-                                aria-label="Edit teacher name"
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") saveTeacherEdit();
-                                }}
-                              />
-                              <div className="flex gap-2">
-                                <button
-                                  onClick={saveTeacherEdit}
-                                  className="px-4 py-2 bg-[#3A86FF] text-[#F1F1F1] rounded-lg hover:bg-[#4361EE]"
-                                >
-                                  Save
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    setEditingTeacher(null);
-                                    setEditingTeacherName("");
-                                  }}
-                                  className="px-4 py-2 bg-[#B0B0B0] text-[#F1F1F1] rounded-lg hover:bg-[#D1D1D1]"
-                                >
-                                  Cancel
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="flex justify-between items-start">
-                              <h3 className="font-medium text-[#EAEAEA]">{t}</h3>
-                              <div className="flex gap-2">
-                                <button
-                                  onClick={() => {
-                                    setEditingTeacher(t);
-                                    setEditingTeacherName(t);
-                                  }}
-                                  className="text-[#3A86FF] hover:text-[#4361EE] transition-colors duration-200"
-                                  aria-label={`Edit teacher ${t}`}
-                                >
-                                  Edit
-                                </button>
-                                <button
-                                  onClick={() => deleteTeacher(t)}
-                                  className="text-[#EF9A9A] hover:text-[#D32F2F] transition-colors duration-200"
-                                  aria-label={`Delete teacher ${t}`}
-                                >
-                                  <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    className="h-5 w-5"
-                                    viewBox="0 0 20 20"
-                                    fill="currentColor"
-                                  >
-                                    <path
-                                      fillRule="evenodd"
-                                      d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
-                                      clipRule="evenodd"
-                                    />
-                                  </svg>
-                                </button>
-                              </div>
-                            </div>
-                          )}
+                          <h3 className="font-medium text-[#EAEAEA]">{t.name}</h3>
+                          <div className="text-sm text-[#B0B0B0]">Username: <span className="font-mono">{t.username}</span></div>
+                          <div className="text-sm text-[#B0B0B0]">Password: <span className="font-mono">{t.password}</span></div>
+                          <button
+                            onClick={() => setEditingTeacher(t.username)}
+                            className="mt-2 px-3 py-1 bg-blue-600 text-white rounded"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => deleteTeacher(t.name)}
+                            className="mt-2 px-3 py-1 bg-red-600 text-white rounded"
+                          >
+                            Delete
+                          </button>
                         </div>
                       ))}
                     </div>
@@ -803,8 +759,8 @@ export default function AdminDashboard({
                       >
                         <option value="">Assign Teacher</option>
                         {teachers.map((t) => (
-                          <option key={t} value={t}>
-                            {t}
+                          <option key={t.username} value={t.username}>
+                            {t.name}
                           </option>
                         ))}
                       </select>
@@ -985,8 +941,8 @@ export default function AdminDashboard({
                                   >
                                     <option value="">No Teacher</option>
                                     {teachers.map((t) => (
-                                      <option key={t} value={t}>
-                                        {t}
+                                      <option key={t.username} value={t.username}>
+                                        {t.name}
                                       </option>
                                     ))}
                                   </select>
@@ -1021,7 +977,10 @@ export default function AdminDashboard({
                                   {s.standard || "-"}
                                 </td>
                                 <td className="px-4 py-3 whitespace-nowrap text-sm text-[#B0B0B0]">
-                                  {teachers.find((t) => assignments[t]?.includes(s.id)) || "-"}
+                                  {(() => {
+                                    const teacher = teachers.find((t) => assignments[t.username]?.includes(s.id));
+                                    return teacher ? teacher.name : "-";
+                                  })()}
                                 </td>
                                 <td className="px-4 py-3 whitespace-nowrap text-sm">
                                   <button
@@ -1031,7 +990,10 @@ export default function AdminDashboard({
                                         name: s.name,
                                         id: s.id,
                                         standard: s.standard || "",
-                                        teacher: teachers.find((t) => assignments[t]?.includes(s.id)) || "",
+                                        teacher: (() => {
+                                          const teacher = teachers.find((t) => assignments[t.username]?.includes(s.id));
+                                          return teacher ? teacher.name : "";
+                                        })(),
                                       });
                                     }}
                                     className="text-[#3A86FF] hover:text-[#4361EE] mr-2"

@@ -11,23 +11,23 @@ export default function PrelineScript() {
     // Only run in browser
     if (typeof window !== "undefined") {
       import("jquery").then(($) => {
-        (window as any).$ = $;
-        (window as any).jQuery = $;
+          (window as unknown as { $: typeof $; jQuery: typeof $ }).$ = $;
+          (window as unknown as { $: typeof $; jQuery: typeof $ }).jQuery = $;
         import("datatables.net").then(() => {
-          if ($.fn && ($.fn as any).dataTable) {
-            (window as any).DataTable = ($.fn as any).dataTable;
-          }
+            if ($.fn && ($.fn as unknown as { dataTable?: unknown }).dataTable) {
+              (window as unknown as { DataTable?: unknown }).DataTable = ($.fn as unknown as { dataTable?: unknown }).dataTable;
+            }
         });
       });
       import("lodash").then((_mod) => {
-        (window as any)._ = _mod;
+          (window as unknown as { _: typeof _mod })._ = _mod;
       });
       import("nouislider").then((noUiSlider) => {
-        (window as any).noUiSlider = noUiSlider;
+          (window as unknown as { noUiSlider: typeof noUiSlider }).noUiSlider = noUiSlider;
       });
       import("dropzone/dist/dropzone-min.js");
       import("vanilla-calendar-pro").then((VanillaCalendarPro) => {
-        (window as any).VanillaCalendarPro = VanillaCalendarPro;
+          (window as unknown as { VanillaCalendarPro: typeof VanillaCalendarPro }).VanillaCalendarPro = VanillaCalendarPro;
       });
     }
     // Preline UI

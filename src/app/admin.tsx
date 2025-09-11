@@ -1,6 +1,6 @@
 
 "use client";
-import { useMemo, useState, useEffect, useRef } from "react";
+import { useMemo, useState, useRef } from "react";
 import type { AttendanceMap, Assignments, Student, AttendanceStatus } from "./page";
 
 interface AdminProps {
@@ -114,27 +114,7 @@ export default function AdminDashboard({
   const studentTableRef = useRef<HTMLTableElement>(null);
   const teacherContainerRef = useRef<HTMLDivElement>(null);
 
-  // Handle click outside to save edits
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        editingStudentId &&
-        studentTableRef.current &&
-        !studentTableRef.current.contains(event.target as Node)
-      ) {
-        saveStudentEdit();
-      }
-      if (
-        editingTeacher &&
-        teacherContainerRef.current &&
-        !teacherContainerRef.current.contains(event.target as Node)
-      ) {
-        saveTeacherEdit();
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [editingStudentId, editingTeacher, editingStudentData, editingTeacherName]);
+  // ...existing code...
 
   const addTeacher = () => {
     const name = newTeacher.trim();
@@ -228,42 +208,25 @@ export default function AdminDashboard({
       });
       return newAssignments;
     });
-    setAttendance((prev) => {
-      const newAttendance: AttendanceMap = {};
-      Object.keys(prev).forEach((teacher) => {
-        newAttendance[teacher] = {};
-        Object.keys(prev[teacher]).forEach((date) => {
-          const dateAttendance = { ...prev[teacher][date] };
-          if (dateAttendance[editingStudentId]) {
-            dateAttendance[id] = dateAttendance[editingStudentId];
-            delete dateAttendance[editingStudentId];
-          }
-          newAttendance[teacher][date] = dateAttendance;
-        });
-      });
-      return newAttendance;
-    });
-    setEditingStudentId(null);
-    setEditingStudentData(null);
   };
 
+  // Add this function to handle student deletion
   const deleteStudent = (studentId: string) => {
     setStudents((prev) => prev.filter((s) => s.id !== studentId));
     setAssignments((prev) => {
-      const newAssignments: Assignments = {};
-      Object.keys(prev).forEach((teacher) => {
-        newAssignments[teacher] = prev[teacher].filter((id) => id !== studentId);
+      const newAssignments = { ...prev };
+      Object.keys(newAssignments).forEach((t) => {
+        newAssignments[t] = newAssignments[t].filter((sid) => sid !== studentId);
       });
       return newAssignments;
     });
     setAttendance((prev) => {
-      const newAttendance: AttendanceMap = {};
-      Object.keys(prev).forEach((teacher) => {
-        newAttendance[teacher] = {};
-        Object.keys(prev[teacher]).forEach((date) => {
-          const dateAttendance = { ...prev[teacher][date] };
-          delete dateAttendance[studentId];
-          newAttendance[teacher][date] = dateAttendance;
+      const newAttendance = { ...prev };
+      Object.keys(newAttendance).forEach((teacher) => {
+        Object.keys(newAttendance[teacher] ?? {}).forEach((date) => {
+          if (newAttendance[teacher][date][studentId]) {
+            delete newAttendance[teacher][date][studentId];
+          }
         });
       });
       return newAttendance;
@@ -321,7 +284,7 @@ export default function AdminDashboard({
         setStudents((prev) => [...prev, ...newStudents]);
         setAssignments(newAssignments);
         event.target.value = "";
-      } catch (error) {
+      } catch {
         setCsvError("Error processing CSV file");
       }
     };

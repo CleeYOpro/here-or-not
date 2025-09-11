@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import type { Student, Assignments, AttendanceMap } from '../page';
+import type { Student, Assignments } from '../page';
 
 interface StudentManagementProps {
   students: Student[];
@@ -101,11 +101,11 @@ export default function StudentManagement({
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <select
-                        value={Object.entries(assignments).find(([_, students]) => 
+                        value={Object.entries(assignments).find(([, students]) => 
                           students.includes(s.id))?.[0] || ''}
                         onChange={(e) => {
                           const newTeacher = e.target.value;
-                          const oldTeacher = Object.entries(assignments).find(([_, students]) => 
+                          const oldTeacher = Object.entries(assignments).find(([, students]) => 
                             students.includes(s.id))?.[0];
                           
                           setAssignments(prev => {

@@ -1,4 +1,6 @@
 declare module '@fullcalendar/core' {
-  const FullCalendar: any;
+  const FullCalendar: {
+    Calendar: new (el: HTMLElement, options: object) => { render: () => void };
+  };
   export default FullCalendar;
 }

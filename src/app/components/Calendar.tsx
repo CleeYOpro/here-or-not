@@ -1,13 +1,14 @@
 import { useEffect } from "react";
-// @ts-ignore
 import FullCalendar from "@fullcalendar/core";
 import dayGridPlugin from "@fullcalendar/daygrid";
 
-export default function Calendar({ events = [] }: { events?: any[] }) {
+export default function Calendar({ events = [] }: { events?: { [key: string]: unknown }[] }) {
   useEffect(() => {
     const calendarEl = document.getElementById("calendar-container");
     if (calendarEl) {
-      const calendar = new (FullCalendar as any).Calendar(calendarEl, {
+      // FullCalendar is imported as default, but we need the Calendar constructor
+      const CalendarConstructor = FullCalendar.Calendar as unknown as new (el: HTMLElement, options: object) => { render: () => void };
+      const calendar = new CalendarConstructor(calendarEl, {
         plugins: [dayGridPlugin],
         initialView: "dayGridMonth",
         events,

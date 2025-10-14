@@ -1,0 +1,56 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Admin {
+  id       String @id @default(cuid())
+  username String @unique
+  password String
+}
+
+model Teacher {
+  id          String       @id @default(cuid())
+  name        String
+  username    String       @unique
+  password    String
+  students    Student[]
+  attendances Attendance[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model Student {
+  id          String       @id // 5-digit student ID
+  name        String
+  standard    String?
+  teacher     Teacher?     @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+  teacherId   String?
+  attendances Attendance[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model Attendance {
+  id        String   @id @default(cuid())
+  date      String   // YYYY-MM-DD format
+  status    String   // "present" | "absent" | "late"
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  studentId String
+  teacher   Teacher  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  teacherId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([teacherId, studentId, date])
+  @@index([date])
+  @@index([studentId])
+  @@index([teacherId])
+}

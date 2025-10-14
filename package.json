@@ -6,15 +6,22 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:studio": "prisma studio",
+    "db:seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
     "@fullcalendar/daygrid": "^6.1.19",
+    "@neondatabase/serverless": "^1.0.2",
+    "@prisma/client": "^6.17.1",
     "jquery": "^3.7.1",
     "lodash": "^4.17.21",
     "next": "15.5.2",
     "nouislider": "^15.8.1",
     "preline": "^3.2.3",
+    "prisma": "^6.17.1",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-icons": "^5.5.0",
@@ -29,6 +36,7 @@
     "eslint": "^9",
     "eslint-config-next": "15.5.2",
     "tailwindcss": "^4",
+    "tsx": "^4.19.2",
     "typescript": "^5"
   }
 }

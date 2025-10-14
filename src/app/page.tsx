@@ -29,8 +29,8 @@ export default function LoginPage() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const ADMIN_CREDENTIALS = {
-    username: "admin",
-    password: "ClassTrack2025",
+    username: "c",
+    password: "c",
   };
 
   const [teachers, setTeachers] = useState<Teacher[]>([]);

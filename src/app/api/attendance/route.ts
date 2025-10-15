@@ -138,17 +138,19 @@ export async function POST(request: NextRequest) {
     let attendance;
     if (existing.length > 0) {
       // Update existing
+      const now = new Date().toISOString();
       attendance = await sql`
         UPDATE "Attendance"
-        SET status = ${status}
+        SET status = ${status}, "updatedAt" = ${now}
         WHERE "teacherId" = ${teacherId} AND "studentId" = ${studentId} AND date = ${date}
         RETURNING id, date, status, "studentId", "teacherId"
       `;
     } else {
       // Create new
+      const now = new Date().toISOString();
       attendance = await sql`
-        INSERT INTO "Attendance" ("teacherId", "studentId", date, status)
-        VALUES (${teacherId}, ${studentId}, ${date}, ${status})
+        INSERT INTO "Attendance" ("teacherId", "studentId", date, status, "createdAt", "updatedAt")
+        VALUES (${teacherId}, ${studentId}, ${date}, ${status}, ${now}, ${now})
         RETURNING id, date, status, "studentId", "teacherId"
       `;
     }

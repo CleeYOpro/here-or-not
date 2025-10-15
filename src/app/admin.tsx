@@ -295,7 +295,8 @@ export default function AdminDashboard({
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          id, 
+          id: editingStudentId, // Use original ID to find the student
+          newId: id, // New ID if it changed
           name: name.trim(), 
           standard: standard.trim(),
           teacherId 

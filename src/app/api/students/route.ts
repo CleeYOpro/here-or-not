@@ -100,7 +100,7 @@ export async function DELETE(request: NextRequest) {
 // PUT update student
 export async function PUT(request: NextRequest) {
   try {
-    const { id, name, standard, teacherId } = await request.json();
+    const { id, newId, name, standard, teacherId } = await request.json();
 
     if (!id) {
       return NextResponse.json(
@@ -112,12 +112,26 @@ export async function PUT(request: NextRequest) {
     const sql = getDb();
     const students = await sql`
       UPDATE "Student"
-      SET name = ${name}, standard = ${standard || null}, "teacherId" = ${teacherId || null}
+      SET id = ${newId || id}, name = ${name}, standard = ${standard || null}, "teacherId" = ${teacherId || null}
       WHERE id = ${id}
       RETURNING id, name, standard, "teacherId"
     `;
 
-    return NextResponse.json(students[0]);
+    if (students.length === 0) {
+      return NextResponse.json(
+        { error: 'Student not found' },
+        { status: 404 }
+      );
+    }
+
+    // Return only the fields we need (exclude timestamps)
+    const student = students[0];
+    return NextResponse.json({
+      id: student.id,
+      name: student.name,
+      standard: student.standard,
+      teacherId: student.teacherId
+    });
   } catch (error) {
     console.error('Update student error:', error);
     return NextResponse.json(

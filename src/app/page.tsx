@@ -6,7 +6,7 @@ import TeacherDashboard from "./teacher";
 // Shared types
 export type AttendanceStatus = "present" | "absent" | "late";
 export type Student = { id: string; name: string; standard?: string };
-export type Teacher = { name: string; username: string; password: string };
+export type Teacher = { id?: string; name: string; username: string; password: string };
 export type Assignments = Record<string, string[]>; // teacher username -> [studentId]
 export type AttendanceMap = Record<
   string, // teacher username
@@ -37,7 +37,67 @@ export default function LoginPage() {
   const [students, setStudents] = useState<Student[]>([]);
   const [assignments, setAssignments] = useState<Assignments>({});
   const [attendance, setAttendance] = useState<AttendanceMap>({});
+  const [loading, setLoading] = useState(true);
 
+  // Fetch data on mount
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        setLoading(true);
+        
+        // Fetch teachers
+        const teachersRes = await fetch('/api/teachers');
+        const teachersData = await teachersRes.json();
+        setTeachers(teachersData);
+        
+        // Fetch students
+        const studentsRes = await fetch('/api/students');
+        const studentsData = await studentsRes.json();
+        setStudents(studentsData);
+        
+        // Build assignments from students data
+        const assignmentsMap: Assignments = {};
+        studentsData.forEach((student: any) => {
+          if (student.teacher?.username) {
+            if (!assignmentsMap[student.teacher.username]) {
+              assignmentsMap[student.teacher.username] = [];
+            }
+            assignmentsMap[student.teacher.username].push(student.id);
+          }
+        });
+        setAssignments(assignmentsMap);
+        
+        // Fetch attendance
+        const attendanceRes = await fetch('/api/attendance');
+        const attendanceData = await attendanceRes.json();
+        
+        // Build attendance map
+        const attendanceMap: AttendanceMap = {};
+        attendanceData.forEach((record: any) => {
+          const teacherUsername = record.teacher?.username;
+          if (teacherUsername) {
+            if (!attendanceMap[teacherUsername]) {
+              attendanceMap[teacherUsername] = {};
+            }
+            if (!attendanceMap[teacherUsername][record.date]) {
+              attendanceMap[teacherUsername][record.date] = {};
+            }
+            attendanceMap[teacherUsername][record.date][record.studentId] = record.status;
+          }
+        });
+        setAttendance(attendanceMap);
+        
+      } catch (error) {
+        console.error('Failed to fetch data:', error);
+        setToastMessage('Failed to load data');
+      } finally {
+        setLoading(false);
+      }
+    }
+    
+    fetchData();
+  }, []);
+  
   useEffect(() => {
     if (toastMessage) {
       const timer = setTimeout(() => setToastMessage(null), 3000);
@@ -70,6 +130,13 @@ export default function LoginPage() {
 
   // Admin dashboard
   if (role === "admin" && isAdminAuthed) {
+    if (loading) {
+      return (
+        <div className="min-h-screen bg-[#121212] flex items-center justify-center">
+          <div className="text-white text-xl">Loading...</div>
+        </div>
+      );
+    }
     return (
       <AdminDashboard
         goBack={goBack}
@@ -87,6 +154,13 @@ export default function LoginPage() {
 
   // Teacher dashboard
   if (role === "teacher" && authedTeacher && isTeacherAuthed) {
+    if (loading) {
+      return (
+        <div className="min-h-screen bg-[#121212] flex items-center justify-center">
+          <div className="text-white text-xl">Loading...</div>
+        </div>
+      );
+    }
     return (
       <div className="min-h-screen bg-[#121212] p-4 sm:p-6">
         <div className="flex justify-end mb-6">
@@ -107,6 +181,7 @@ export default function LoginPage() {
         </div>
         <TeacherDashboard
           teacher={authedTeacher.username}
+          teacherId={teachers.find(t => t.username === authedTeacher.username)?.id || ''}
           goBack={goBack}
           students={students}
           assignments={assignments}
@@ -213,18 +288,36 @@ export default function LoginPage() {
             <p className="text-[#EAEAEA] text-lg">Enter your username and password</p>
           </div>
           <form
-            onSubmit={(e) => {
+            onSubmit={async (e) => {
               e.preventDefault();
-              const found = teachers.find(
-                (t) => t.username === teacherLoginUsername && t.password === teacherLoginPassword
-              );
-              if (found) {
-                setIsTeacherAuthed(true);
-                setAuthedTeacher(found);
-                setError("");
-                setToastMessage("Teacher login successful");
-              } else {
-                setError("Invalid username or password");
+              try {
+                const res = await fetch('/api/auth/teacher', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    username: teacherLoginUsername,
+                    password: teacherLoginPassword,
+                  }),
+                });
+                
+                const data = await res.json();
+                
+                if (data.success && data.teacher) {
+                  setIsTeacherAuthed(true);
+                  setAuthedTeacher({
+                    name: data.teacher.name,
+                    username: data.teacher.username,
+                    password: '', // Don't store password
+                  });
+                  setError("");
+                  setToastMessage("Teacher login successful");
+                } else {
+                  setError("Invalid username or password");
+                  setToastMessage("Teacher login failed");
+                }
+              } catch (error) {
+                console.error('Login error:', error);
+                setError("Login failed");
                 setToastMessage("Teacher login failed");
               }
             }}

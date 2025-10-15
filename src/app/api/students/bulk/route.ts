@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { getDb } from '@/lib/db';
 
 // POST bulk create students from CSV
 export async function POST(request: NextRequest) {
   try {
     const { students } = await request.json();
+    const sql = getDb();
 
     // students is an array of { id, name, standard, teacherUsername }
     const results = [];
@@ -15,31 +16,28 @@ export async function POST(request: NextRequest) {
         // Find teacher by username
         let teacherId = null;
         if (studentData.teacherUsername) {
-          const teacher = await prisma.teacher.findUnique({
-            where: { username: studentData.teacherUsername },
-          });
-          teacherId = teacher?.id || null;
+          const teachers = await sql`
+            SELECT id FROM "Teacher" WHERE username = ${studentData.teacherUsername} LIMIT 1
+          `;
+          teacherId = teachers.length > 0 ? teachers[0].id : null;
         }
 
         // Check if student already exists
-        const existing = await prisma.student.findUnique({
-          where: { id: studentData.id },
-        });
+        const existing = await sql`
+          SELECT id FROM "Student" WHERE id = ${studentData.id} LIMIT 1
+        `;
 
-        if (existing) {
+        if (existing.length > 0) {
           continue; // Skip duplicates
         }
 
-        const student = await prisma.student.create({
-          data: {
-            id: studentData.id,
-            name: studentData.name,
-            standard: studentData.standard,
-            teacherId,
-          },
-        });
+        const created = await sql`
+          INSERT INTO "Student" (id, name, standard, "teacherId")
+          VALUES (${studentData.id}, ${studentData.name}, ${studentData.standard || null}, ${teacherId})
+          RETURNING id, name, standard, "teacherId"
+        `;
 
-        results.push(student);
+        results.push(created[0]);
       } catch (error) {
         errors.push({
           studentId: studentData.id,

@@ -1,17 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { getDb } from '@/lib/db';
 
 // GET attendance summary for a specific date (for admin dashboard)
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const date = searchParams.get('date') || new Date().toISOString().slice(0, 10);
+    const sql = getDb();
 
-    const attendance = await prisma.attendance.findMany({
-      where: {
-        date,
-      },
-    });
+    const attendance = await sql`
+      SELECT status FROM "Attendance"
+      WHERE date = ${date}
+    `;
 
     const summary = {
       present: 0,
@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
       late: 0,
     };
 
-    attendance.forEach((record: { status: string }) => {
+    attendance.forEach((record: any) => {
       if (record.status === 'present') summary.present++;
       else if (record.status === 'absent') summary.absent++;
       else if (record.status === 'late') summary.late++;

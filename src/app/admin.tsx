@@ -119,16 +119,35 @@ export default function AdminDashboard({
 
   // Ensure teachers is always Teacher[]
 
-  const addTeacher = () => {
-  const name = newTeacher.trim();
-  if (!name || teachers.some(t => t.name === name)) return;
-  const username = name.toLowerCase().replace(/[^a-z0-9]/g, "");
-  const password = Math.floor(1000000000 + Math.random() * 9000000000).toString();
-  setTeachers((prev) => [...prev, { name, username, password }]);
-  setNewTeacher("");
+  const addTeacher = async () => {
+    const name = newTeacher.trim();
+    if (!name || teachers.some(t => t.name === name)) return;
+    const username = name.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const password = Math.floor(1000000000 + Math.random() * 9000000000).toString();
+    
+    try {
+      const res = await fetch('/api/teachers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, username, password }),
+      });
+      
+      if (res.ok) {
+        const newTeacherData = await res.json();
+        setTeachers((prev) => [...prev, newTeacherData]);
+        setNewTeacher("");
+      } else {
+        const errorData = await res.json();
+        console.error('Failed to add teacher:', errorData);
+        alert(`Failed to add teacher: ${errorData.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error adding teacher:', error);
+      alert(`Error adding teacher: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   };
 
-  const saveTeacherEdit = () => {
+  const saveTeacherEdit = async () => {
     if (!editingTeacher || !editingTeacherName.trim()) {
       setEditingTeacher(null);
       return;
@@ -136,116 +155,213 @@ export default function AdminDashboard({
     if (teachers.some(t => t.name === editingTeacherName.trim()) && editingTeacherName.trim() !== editingTeacher) {
       return; // Prevent duplicate names
     }
-    setTeachers((prev) =>
-      prev.map((t) =>
-        t.name === editingTeacher
-          ? { ...t, name: editingTeacherName.trim(), username: editingTeacherName.trim().toLowerCase().replace(/[^a-z0-9]/g, "") }
-          : t
-      )
-    );
-    setAssignments((prev) => {
-      const newAssignments = { ...prev };
-      const oldUsername = editingTeacher.toLowerCase().replace(/[^a-z0-9]/g, "");
-      const newUsername = editingTeacherName.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
-      if (newAssignments[oldUsername]) {
-        newAssignments[newUsername] = newAssignments[oldUsername];
-        delete newAssignments[oldUsername];
+    
+    const teacher = teachers.find(t => t.name === editingTeacher);
+    if (!teacher?.id) return;
+    
+    const newName = editingTeacherName.trim();
+    const newUsername = newName.toLowerCase().replace(/[^a-z0-9]/g, "");
+    
+    try {
+      const res = await fetch('/api/teachers', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          id: teacher.id, 
+          name: newName, 
+          username: newUsername 
+        }),
+      });
+      
+      if (res.ok) {
+        const updatedTeacher = await res.json();
+        setTeachers((prev) =>
+          prev.map((t) =>
+            t.id === teacher.id ? updatedTeacher : t
+          )
+        );
+        setAssignments((prev) => {
+          const newAssignments = { ...prev };
+          const oldUsername = editingTeacher.toLowerCase().replace(/[^a-z0-9]/g, "");
+          if (newAssignments[oldUsername]) {
+            newAssignments[newUsername] = newAssignments[oldUsername];
+            delete newAssignments[oldUsername];
+          }
+          return newAssignments;
+        });
+        setAttendance((prev) => {
+          const newAttendance = { ...prev };
+          const oldUsername = editingTeacher.toLowerCase().replace(/[^a-z0-9]/g, "");
+          if (newAttendance[oldUsername]) {
+            newAttendance[newUsername] = newAttendance[oldUsername];
+            delete newAttendance[oldUsername];
+          }
+          return newAttendance;
+        });
+        setEditingTeacher(null);
+        setEditingTeacherName("");
+      } else {
+        const errorData = await res.json();
+        alert(`Failed to update teacher: ${errorData.error || 'Unknown error'}`);
       }
-      return newAssignments;
-    });
-    setAttendance((prev) => {
-      const newAttendance = { ...prev };
-      const oldUsername = editingTeacher.toLowerCase().replace(/[^a-z0-9]/g, "");
-      const newUsername = editingTeacherName.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
-      if (newAttendance[oldUsername]) {
-        newAttendance[newUsername] = newAttendance[oldUsername];
-        delete newAttendance[oldUsername];
-      }
-      return newAttendance;
-    });
-    setEditingTeacher(null);
-    setEditingTeacherName("");
+    } catch (error) {
+      console.error('Error updating teacher:', error);
+      alert(`Error updating teacher: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   };
 
-  const deleteTeacher = (teacherName: string) => {
-    setTeachers((prev) => prev.filter((t) => t.name !== teacherName));
-    setAssignments((prev) => {
-      const newAssignments = { ...prev };
-      const username = teacherName.toLowerCase().replace(/[^a-z0-9]/g, "");
-      delete newAssignments[username];
-      return newAssignments;
-    });
-    setAttendance((prev) => {
-      const newAttendance = { ...prev };
-      const username = teacherName.toLowerCase().replace(/[^a-z0-9]/g, "");
-      delete newAttendance[username];
-      return newAttendance;
-    });
+  const deleteTeacher = async (teacherName: string) => {
+    const teacher = teachers.find(t => t.name === teacherName);
+    if (!teacher) return;
+    
+    try {
+      const res = await fetch(`/api/teachers?id=${teacher.id}`, {
+        method: 'DELETE',
+      });
+      
+      if (res.ok) {
+        setTeachers((prev) => prev.filter((t) => t.name !== teacherName));
+        setAssignments((prev) => {
+          const newAssignments = { ...prev };
+          const username = teacherName.toLowerCase().replace(/[^a-z0-9]/g, "");
+          delete newAssignments[username];
+          return newAssignments;
+        });
+        setAttendance((prev) => {
+          const newAttendance = { ...prev };
+          const username = teacherName.toLowerCase().replace(/[^a-z0-9]/g, "");
+          delete newAttendance[username];
+          return newAttendance;
+        });
+      }
+    } catch (error) {
+      console.error('Error deleting teacher:', error);
+    }
   };
 
-  const addStudent = () => {
+  const addStudent = async () => {
     const name = studentName.trim();
     const id = studentId.trim();
     const standard = studentStandard.trim();
-    const teacher = studentTeacher.trim();
+    const teacherUsername = studentTeacher.trim();
     if (!name || !/^\d{5}$/.test(id) || students.some((s) => s.id === id)) return;
-    setStudents((prev) => [...prev, { id, name, standard }]);
-    if (teacher) {
-      setAssignments((prev) => ({
-        ...prev,
-        [teacher]: [...(prev[teacher] ?? []), id],
-      }));
+    
+    try {
+      const teacher = teachers.find(t => t.username === teacherUsername);
+      const teacherId = teacher?.id || null;
+      
+      const res = await fetch('/api/students', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, name, standard, teacherId }),
+      });
+      
+      if (res.ok) {
+        const newStudent = await res.json();
+        setStudents((prev) => [...prev, newStudent]);
+        if (teacherUsername) {
+          setAssignments((prev) => ({
+            ...prev,
+            [teacherUsername]: [...(prev[teacherUsername] ?? []), id],
+          }));
+        }
+        setStudentName("");
+        setStudentId("");
+        setStudentStandard("");
+        setStudentTeacher("");
+      } else {
+        const errorData = await res.json();
+        console.error('Failed to add student:', errorData);
+        alert(`Failed to add student: ${errorData.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error adding student:', error);
+      alert(`Error adding student: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-    setStudentName("");
-    setStudentId("");
-    setStudentStandard("");
-    setStudentTeacher("");
   };
 
-  const saveStudentEdit = () => {
+  const saveStudentEdit = async () => {
     if (!editingStudentId || !editingStudentData) return;
     const { name, id, standard, teacher } = editingStudentData;
     if (!name.trim() || !/^\d{5}$/.test(id.trim()) || (id !== editingStudentId && students.some((s) => s.id === id))) {
       return;
     }
-    setStudents((prev) =>
-      prev.map((s) =>
-        s.id === editingStudentId ? { id, name: name.trim(), standard: standard.trim() } : s
-      )
-    );
-    setAssignments((prev) => {
-      const newAssignments = { ...prev };
-      Object.keys(newAssignments).forEach((t) => {
-        newAssignments[t] = newAssignments[t].filter((sid) => sid !== editingStudentId);
-        if (t === teacher && !newAssignments[t].includes(id)) {
-          newAssignments[t].push(id);
-        }
+    
+    try {
+      const teacherObj = teachers.find(t => t.username === teacher);
+      const teacherId = teacherObj?.id || null;
+      
+      const res = await fetch('/api/students', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          id, 
+          name: name.trim(), 
+          standard: standard.trim(),
+          teacherId 
+        }),
       });
-      return newAssignments;
-    });
+      
+      if (res.ok) {
+        const updatedStudent = await res.json();
+        setStudents((prev) =>
+          prev.map((s) =>
+            s.id === editingStudentId ? updatedStudent : s
+          )
+        );
+        setAssignments((prev) => {
+          const newAssignments = { ...prev };
+          Object.keys(newAssignments).forEach((t) => {
+            newAssignments[t] = newAssignments[t].filter((sid) => sid !== editingStudentId);
+            if (t === teacher && !newAssignments[t].includes(id)) {
+              newAssignments[t].push(id);
+            }
+          });
+          return newAssignments;
+        });
+        setEditingStudentId(null);
+        setEditingStudentData(null);
+      } else {
+        const errorData = await res.json();
+        alert(`Failed to update student: ${errorData.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error updating student:', error);
+      alert(`Error updating student: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   };
 
   // Add this function to handle student deletion
-  const deleteStudent = (studentId: string) => {
-    setStudents((prev) => prev.filter((s) => s.id !== studentId));
-    setAssignments((prev) => {
-      const newAssignments = { ...prev };
-      Object.keys(newAssignments).forEach((t) => {
-        newAssignments[t] = newAssignments[t].filter((sid) => sid !== studentId);
+  const deleteStudent = async (studentId: string) => {
+    try {
+      const res = await fetch(`/api/students?id=${studentId}`, {
+        method: 'DELETE',
       });
-      return newAssignments;
-    });
-    setAttendance((prev) => {
-      const newAttendance = { ...prev };
-      Object.keys(newAttendance).forEach((teacher) => {
-        Object.keys(newAttendance[teacher] ?? {}).forEach((date) => {
-          if (newAttendance[teacher][date][studentId]) {
-            delete newAttendance[teacher][date][studentId];
-          }
+      
+      if (res.ok) {
+        setStudents((prev) => prev.filter((s) => s.id !== studentId));
+        setAssignments((prev) => {
+          const newAssignments = { ...prev };
+          Object.keys(newAssignments).forEach((t) => {
+            newAssignments[t] = newAssignments[t].filter((sid) => sid !== studentId);
+          });
+          return newAssignments;
         });
-      });
-      return newAttendance;
-    });
+        setAttendance((prev) => {
+          const newAttendance = { ...prev };
+          Object.keys(newAttendance).forEach((teacher) => {
+            Object.keys(newAttendance[teacher] ?? {}).forEach((date) => {
+              if (newAttendance[teacher][date][studentId]) {
+                delete newAttendance[teacher][date][studentId];
+              }
+            });
+          });
+          return newAttendance;
+        });
+      }
+    } catch (error) {
+      console.error('Error deleting student:', error);
+    }
   };
 
   const handleCSVUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -253,7 +369,7 @@ export default function AdminDashboard({
     if (!file) return;
     setCsvError(null);
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
         const text = e.target?.result as string;
         const lines = text.split("\n").filter((line) => line.trim());
@@ -262,10 +378,10 @@ export default function AdminDashboard({
           return;
         }
         const dataLines = lines.slice(1);
-  const newTeachers: Teacher[] = [];
-        const newStudents: Student[] = [];
-        const newAssignments: Assignments = { ...assignments };
+        const newTeachersToCreate: { name: string; username: string; password: string }[] = [];
+        const newStudentsToCreate: { id: string; name: string; standard: string; teacherUsername: string }[] = [];
         const errors: string[] = [];
+        
         dataLines.forEach((line, index) => {
           const parts = line.split(",").map((part) => part.trim());
           if (parts.length < 4) {
@@ -277,32 +393,93 @@ export default function AdminDashboard({
             errors.push(`Row ${index + 2}: Student ID must be 5 digits`);
             return;
           }
-          if (students.some((s) => s.id === id) || newStudents.some((s) => s.id === id)) {
-            return;
+          if (students.some((s) => s.id === id) || newStudentsToCreate.some((s) => s.id === id)) {
+            return; // Skip duplicates
           }
-          if (!teachers.some(t => t.name === teacherName) && !newTeachers.some(t => t.name === teacherName)) {
-            const username = teacherName.toLowerCase().replace(/[^a-z0-9]/g, "");
-            const password = Math.floor(1000000000 + Math.random() * 9000000000).toString();
-            newTeachers.push({ name: teacherName, username, password });
-          }
-          newStudents.push({ id, name, standard: standard || undefined });
+          
           const username = teacherName.toLowerCase().replace(/[^a-z0-9]/g, "");
-          if (!newAssignments[username]) {
-            newAssignments[username] = [];
+          
+          // Check if teacher needs to be created
+          if (!teachers.some(t => t.name === teacherName) && !newTeachersToCreate.some(t => t.name === teacherName)) {
+            const password = Math.floor(1000000000 + Math.random() * 9000000000).toString();
+            newTeachersToCreate.push({ name: teacherName, username, password });
           }
-          if (!newAssignments[username].includes(id)) {
-            newAssignments[username].push(id);
-          }
+          
+          newStudentsToCreate.push({ id, name, standard: standard || "", teacherUsername: username });
         });
+        
         if (errors.length > 0) {
           setCsvError(errors.join("; "));
           return;
         }
-        setTeachers((prev) => [...prev, ...newTeachers]);
-        setStudents((prev) => [...prev, ...newStudents]);
-        setAssignments(newAssignments);
-        event.target.value = "";
-      } catch {
+        
+        // Create teachers first via API
+        for (const teacher of newTeachersToCreate) {
+          try {
+            await fetch('/api/teachers', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(teacher),
+            });
+          } catch (error) {
+            console.error('Error creating teacher:', teacher.name, error);
+          }
+        }
+        
+        // Create students via bulk API
+        try {
+          const res = await fetch('/api/students/bulk', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ students: newStudentsToCreate }),
+          });
+          
+          if (res.ok) {
+            const result = await res.json();
+            console.log(`Created ${result.created} students`);
+            if (result.errors && result.errors.length > 0) {
+              console.warn('Some students failed:', result.errors);
+            }
+          }
+        } catch (error) {
+          console.error('Error bulk creating students:', error);
+          setCsvError('Failed to upload students');
+          return;
+        }
+        
+        // Refresh all data from API
+        try {
+          const [teachersRes, studentsRes] = await Promise.all([
+            fetch('/api/teachers'),
+            fetch('/api/students'),
+          ]);
+          
+          const teachersData = await teachersRes.json();
+          const studentsData = await studentsRes.json();
+          
+          setTeachers(teachersData);
+          setStudents(studentsData);
+          
+          // Rebuild assignments
+          const assignmentsMap: Assignments = {};
+          studentsData.forEach((student: any) => {
+            if (student.teacher?.username) {
+              if (!assignmentsMap[student.teacher.username]) {
+                assignmentsMap[student.teacher.username] = [];
+              }
+              assignmentsMap[student.teacher.username].push(student.id);
+            }
+          });
+          setAssignments(assignmentsMap);
+          
+          event.target.value = "";
+          alert(`Successfully uploaded ${newStudentsToCreate.length} students and ${newTeachersToCreate.length} teachers!`);
+        } catch (error) {
+          console.error('Error refreshing data:', error);
+          setCsvError('Upload succeeded but failed to refresh data. Please reload the page.');
+        }
+      } catch (error) {
+        console.error('CSV processing error:', error);
         setCsvError("Error processing CSV file");
       }
     };

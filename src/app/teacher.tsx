@@ -8,6 +8,7 @@ import type { AttendanceMap, Assignments, AttendanceStatus, Student } from "./pa
 
 interface TeacherProps {
   teacher: string;
+  teacherId: string;
   goBack: () => void;
   students: Student[];
   assignments: Assignments;
@@ -17,6 +18,7 @@ interface TeacherProps {
 
 export default function TeacherDashboard({
   teacher,
+  teacherId,
   goBack,
   students,
   assignments,
@@ -34,22 +36,42 @@ export default function TeacherDashboard({
   const myStudents = students.filter((s) => assignedIds.has(s.id));
   const myTodayMap = attendance[teacher]?.[today] ?? {};
 
-  const markAttendance = (studentId: string, status: AttendanceStatus) => {
-    setAttendance((prev) => {
-      const teacherMap = prev[teacher] ?? {};
-      const dateMap = teacherMap[today] ?? {};
-      return {
-        ...prev,
-        [teacher]: {
-          ...teacherMap,
-          [today]: {
-            ...dateMap,
-            [studentId]: status,
-          },
-        },
-      };
-    });
-    setToastMessage(`Attendance marked as ${status} for student ${studentId}`);
+  const markAttendance = async (studentId: string, status: AttendanceStatus) => {
+    try {
+      const res = await fetch('/api/attendance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          teacherId,
+          studentId,
+          date: today,
+          status,
+        }),
+      });
+      
+      if (res.ok) {
+        setAttendance((prev) => {
+          const teacherMap = prev[teacher] ?? {};
+          const dateMap = teacherMap[today] ?? {};
+          return {
+            ...prev,
+            [teacher]: {
+              ...teacherMap,
+              [today]: {
+                ...dateMap,
+                [studentId]: status,
+              },
+            },
+          };
+        });
+        setToastMessage(`Attendance marked as ${status}`);
+      } else {
+        setToastMessage('Failed to mark attendance');
+      }
+    } catch (error) {
+      console.error('Error marking attendance:', error);
+      setToastMessage('Error marking attendance');
+    }
   };
 
   // Clear toast after 3 seconds

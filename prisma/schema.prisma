@@ -10,32 +10,55 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Admin {
-  id       String @id @default(cuid())
-  username String @unique
-  password String
-}
-
-model Teacher {
+model School {
   id          String       @id @default(cuid())
   name        String
-  username    String       @unique
+  email       String       @unique
   password    String
+  admins      Admin[]
+  classes     Class[]
   students    Student[]
   attendances Attendance[]
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 }
 
+model Admin {
+  id       String  @id @default(cuid())
+  name     String
+  email    String  @unique
+  password String
+  school   School? @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  schoolId String?
+}
+
+model Class {
+  id          String       @id @default(cuid())
+  name        String
+  school      School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  schoolId    String
+  students    Student[]
+  attendances Attendance[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([schoolId])
+}
+
 model Student {
   id          String       @id // 5-digit student ID
   name        String
   standard    String?
-  teacher     Teacher?     @relation(fields: [teacherId], references: [id], onDelete: SetNull)
-  teacherId   String?
+  class       Class?       @relation(fields: [classId], references: [id], onDelete: SetNull)
+  classId     String?
+  school      School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  schoolId    String
   attendances Attendance[]
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
+
+  @@index([classId])
+  @@index([schoolId])
 }
 
 model Attendance {
@@ -44,13 +67,16 @@ model Attendance {
   status    String   // "present" | "absent" | "late"
   student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
   studentId String
-  teacher   Teacher  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
-  teacherId String
+  class     Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  classId   String
+  school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  schoolId  String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([teacherId, studentId, date])
+  @@unique([studentId, date])
   @@index([date])
   @@index([studentId])
-  @@index([teacherId])
+  @@index([classId])
+  @@index([schoolId])
 }

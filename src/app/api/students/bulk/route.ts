@@ -4,22 +4,29 @@ import { getDb } from '@/lib/db';
 // POST bulk create students from CSV
 export async function POST(request: NextRequest) {
   try {
-    const { students } = await request.json();
+    const { students, schoolId } = await request.json();
     const sql = getDb();
 
-    // students is an array of { id, name, standard, teacherUsername }
+    if (!schoolId) {
+      return NextResponse.json(
+        { error: 'schoolId is required' },
+        { status: 400 }
+      );
+    }
+
+    // students is an array of { id, name, standard, className }
     const results = [];
     const errors = [];
 
     for (const studentData of students) {
       try {
-        // Find teacher by username
-        let teacherId = null;
-        if (studentData.teacherUsername) {
-          const teachers = await sql`
-            SELECT id FROM "Teacher" WHERE username = ${studentData.teacherUsername} LIMIT 1
+        // Find class by name within the school
+        let classId = null;
+        if (studentData.className) {
+          const classes = await sql`
+            SELECT id FROM "Class" WHERE name = ${studentData.className} AND "schoolId" = ${schoolId} LIMIT 1
           `;
-          teacherId = teachers.length > 0 ? teachers[0].id : null;
+          classId = classes.length > 0 ? classes[0].id : null;
         }
 
         // Check if student already exists
@@ -32,9 +39,9 @@ export async function POST(request: NextRequest) {
         }
 
         const created = await sql`
-          INSERT INTO "Student" (id, name, standard, "teacherId")
-          VALUES (${studentData.id}, ${studentData.name}, ${studentData.standard || null}, ${teacherId})
-          RETURNING id, name, standard, "teacherId"
+          INSERT INTO "Student" (id, name, standard, "classId", "schoolId", "createdAt", "updatedAt")
+          VALUES (${studentData.id}, ${studentData.name}, ${studentData.standard || null}, ${classId}, ${schoolId}, NOW(), NOW())
+          RETURNING id, name, standard, "classId", "schoolId"
         `;
 
         results.push(created[0]);

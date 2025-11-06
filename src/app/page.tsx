@@ -5,11 +5,12 @@ import TeacherDashboard from "./teacher";
 
 // Shared types
 export type AttendanceStatus = "present" | "absent" | "late";
-export type Student = { id: string; name: string; standard?: string };
-export type Teacher = { id?: string; name: string; username: string; password: string };
-export type Assignments = Record<string, string[]>; // teacher username -> [studentId]
+export type Student = { id: string; name: string; standard?: string; classId?: string; schoolId: string };
+export type School = { id: string; name: string; email: string };
+export type Class = { id: string; name: string; schoolId: string };
+export type ClassAssignments = Record<string, string[]>; // classId -> [studentId]
 export type AttendanceMap = Record<
-  string, // teacher username
+  string, // classId
   Record<
     string, // YYYY-MM-DD date
     Record<string, AttendanceStatus> // studentId -> status
@@ -18,85 +19,105 @@ export type AttendanceMap = Record<
 
 export default function LoginPage() {
   const [role, setRole] = useState<"admin" | "teacher" | null>(null);
-  const [teacherLoginUsername, setTeacherLoginUsername] = useState("");
-  const [teacherLoginPassword, setTeacherLoginPassword] = useState("");
-  const [isTeacherAuthed, setIsTeacherAuthed] = useState(false);
-  const [authedTeacher, setAuthedTeacher] = useState<Teacher | null>(null);
-  const [adminUsername, setAdminUsername] = useState("");
-  const [adminPassword, setAdminPassword] = useState("");
+  const [selectedSchool, setSelectedSchool] = useState<School | null>(null);
+  const [schoolEmail, setSchoolEmail] = useState("");
+  const [schoolPassword, setSchoolPassword] = useState("");
+  const [isAuthed, setIsAuthed] = useState(false);
+  const [availableClasses, setAvailableClasses] = useState<Class[]>([]);
+  const [selectedClass, setSelectedClass] = useState<Class | null>(null);
   const [error, setError] = useState("");
-  const [isAdminAuthed, setIsAdminAuthed] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  const ADMIN_CREDENTIALS = {
-    username: "c",
-    password: "c",
-  };
-
-  const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [schools, setSchools] = useState<School[]>([]);
+  const [classes, setClasses] = useState<Class[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
-  const [assignments, setAssignments] = useState<Assignments>({});
+  const [assignments, setAssignments] = useState<ClassAssignments>({});
   const [attendance, setAttendance] = useState<AttendanceMap>({});
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
-  // Fetch data on mount
+  // Fetch schools on mount
   useEffect(() => {
-    async function fetchData() {
+    async function fetchSchools() {
+      try {
+        const res = await fetch('/api/schools');
+        const data = await res.json();
+        // Ensure data is an array before setting
+        if (Array.isArray(data)) {
+          setSchools(data);
+        } else {
+          console.error('Schools API did not return an array:', data);
+          setSchools([]);
+        }
+      } catch (error) {
+        console.error('Failed to fetch schools:', error);
+        setSchools([]);
+      }
+    }
+    fetchSchools();
+  }, []);
+
+  // Fetch school data when authenticated
+  useEffect(() => {
+    if (!isAuthed || !selectedSchool) return;
+    
+    async function fetchSchoolData() {
+      if (!selectedSchool) return; // Guard clause for TypeScript
+      
       try {
         setLoading(true);
         
-        // Fetch teachers
-        const teachersRes = await fetch('/api/teachers');
-        const teachersData = await teachersRes.json();
-        setTeachers(teachersData);
+        // Fetch classes for this school
+        const classesRes = await fetch(`/api/classes?schoolId=${selectedSchool.id}`);
+        const classesData = await classesRes.json();
+        setClasses(classesData);
         
-        // Fetch students
-        const studentsRes = await fetch('/api/students');
+        // Fetch students for this school
+        const studentsRes = await fetch(`/api/students?schoolId=${selectedSchool.id}`);
         const studentsData = await studentsRes.json();
         setStudents(studentsData);
         
-        // Build assignments from students data
-        const assignmentsMap: Assignments = {};
+        // Build assignments from students data (classId -> studentIds)
+        const assignmentsMap: ClassAssignments = {};
         studentsData.forEach((student: any) => {
-          if (student.teacher?.username) {
-            if (!assignmentsMap[student.teacher.username]) {
-              assignmentsMap[student.teacher.username] = [];
+          if (student.classId) {
+            if (!assignmentsMap[student.classId]) {
+              assignmentsMap[student.classId] = [];
             }
-            assignmentsMap[student.teacher.username].push(student.id);
+            assignmentsMap[student.classId].push(student.id);
           }
         });
         setAssignments(assignmentsMap);
         
-        // Fetch attendance
-        const attendanceRes = await fetch('/api/attendance');
+        // Fetch attendance for this school
+        const attendanceRes = await fetch(`/api/attendance?schoolId=${selectedSchool.id}`);
         const attendanceData = await attendanceRes.json();
         
-        // Build attendance map
+        // Build attendance map (classId -> date -> studentId -> status)
         const attendanceMap: AttendanceMap = {};
         attendanceData.forEach((record: any) => {
-          const teacherUsername = record.teacher?.username;
-          if (teacherUsername) {
-            if (!attendanceMap[teacherUsername]) {
-              attendanceMap[teacherUsername] = {};
+          const classId = record.classId;
+          if (classId) {
+            if (!attendanceMap[classId]) {
+              attendanceMap[classId] = {};
             }
-            if (!attendanceMap[teacherUsername][record.date]) {
-              attendanceMap[teacherUsername][record.date] = {};
+            if (!attendanceMap[classId][record.date]) {
+              attendanceMap[classId][record.date] = {};
             }
-            attendanceMap[teacherUsername][record.date][record.studentId] = record.status;
+            attendanceMap[classId][record.date][record.studentId] = record.status;
           }
         });
         setAttendance(attendanceMap);
         
       } catch (error) {
-        console.error('Failed to fetch data:', error);
-        setToastMessage('Failed to load data');
+        console.error('Failed to fetch school data:', error);
+        setToastMessage('Failed to load school data');
       } finally {
         setLoading(false);
       }
     }
     
-    fetchData();
-  }, []);
+    fetchSchoolData();
+  }, [isAuthed, selectedSchool]);
   
   useEffect(() => {
     if (toastMessage) {
@@ -107,29 +128,59 @@ export default function LoginPage() {
 
   const goBack = () => {
     setRole(null);
-    setAdminUsername("");
-    setAdminPassword("");
+    setSelectedSchool(null);
+    setSchoolEmail("");
+    setSchoolPassword("");
     setError("");
-    setIsAdminAuthed(false);
+    setIsAuthed(false);
+    setSelectedClass(null);
+    setAvailableClasses([]);
   };
 
-  const handleAdminLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (
-      adminUsername === ADMIN_CREDENTIALS.username &&
-      adminPassword === ADMIN_CREDENTIALS.password
-    ) {
-      setIsAdminAuthed(true);
-      setError("");
-      setToastMessage("Admin login successful");
-    } else {
-      setError("Invalid username or password");
-      setToastMessage("Admin login failed");
+    
+    if (!selectedSchool) {
+      setError("Please select a school");
+      return;
+    }
+
+    try {
+      const endpoint = role === "admin" ? '/api/auth/admin' : '/api/auth/teacher';
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          schoolId: selectedSchool.id,
+          email: schoolEmail,
+          password: schoolPassword,
+        }),
+      });
+      
+      const data = await res.json();
+      
+      if (data.success) {
+        setIsAuthed(true);
+        setError("");
+        
+        if (role === "teacher" && data.classes) {
+          setAvailableClasses(data.classes);
+        }
+        
+        setToastMessage(`${role === "admin" ? "Admin" : "Teacher"} login successful`);
+      } else {
+        setError(data.error || "Invalid credentials");
+        setToastMessage("Login failed");
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      setError("Login failed");
+      setToastMessage("Login failed");
     }
   };
 
   // Admin dashboard
-  if (role === "admin" && isAdminAuthed) {
+  if (role === "admin" && isAuthed && selectedSchool) {
     if (loading) {
       return (
         <div className="min-h-screen bg-[#121212] flex items-center justify-center">
@@ -140,8 +191,9 @@ export default function LoginPage() {
     return (
       <AdminDashboard
         goBack={goBack}
-        teachers={teachers}
-        setTeachers={setTeachers}
+        school={selectedSchool}
+        classes={classes}
+        setClasses={setClasses}
         students={students}
         setStudents={setStudents}
         assignments={assignments}
@@ -152,8 +204,65 @@ export default function LoginPage() {
     );
   }
 
+  // Teacher class selection
+  if (role === "teacher" && isAuthed && !selectedClass) {
+    if (!availableClasses || availableClasses.length === 0) {
+      return (
+        <div className="min-h-screen bg-[#121212] flex items-center justify-center p-4 sm:p-6">
+          <div className="w-11/12 max-w-md mx-auto bg-[#1C1C1E] rounded-xl p-8 flex flex-col gap-6 shadow-lg">
+            <div>
+              <h2 className="text-2xl sm:text-3xl font-bold text-white mb-1">
+                No Classes Available
+              </h2>
+              <p className="text-[#EAEAEA] text-lg">There are no classes set up for this school yet. Please contact your administrator.</p>
+            </div>
+            <button
+              onClick={goBack}
+              className="w-full px-6 py-3 rounded-xl bg-[#181F2A] text-white font-bold text-lg border border-[#3A86FF] shadow-lg hover:bg-[#3A86FF] hover:text-white transition-colors duration-200 focus:ring-2 focus:ring-[#3A86FF] focus:outline-none"
+            >
+              Back
+            </button>
+          </div>
+        </div>
+      );
+    }
+    
+    return (
+      <div className="min-h-screen bg-[#121212] flex items-center justify-center p-4 sm:p-6">
+        <div className="w-11/12 max-w-md mx-auto bg-[#1C1C1E] rounded-xl p-8 flex flex-col gap-6 shadow-lg">
+          <div>
+            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-1">
+              Select Your Class
+            </h2>
+            <p className="text-[#EAEAEA] text-lg">Choose a class to take attendance</p>
+          </div>
+          <div className="flex flex-col gap-3">
+            {availableClasses.map((cls) => (
+              <button
+                key={cls.id}
+                onClick={() => {
+                  setSelectedClass(cls);
+                  setToastMessage(`Selected ${cls.name}`);
+                }}
+                className="w-full px-6 py-4 rounded-xl bg-[#121212] text-white border border-[#333] hover:border-[#3A86FF] hover:bg-[#3A86FF]/10 transition-colors duration-200 text-left font-semibold text-lg focus:ring-2 focus:ring-[#3A86FF] focus:outline-none"
+              >
+                {cls.name}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={goBack}
+            className="w-full px-6 py-3 rounded-xl bg-[#181F2A] text-white font-bold text-lg border border-[#3A86FF] shadow-lg hover:bg-[#3A86FF] hover:text-white transition-colors duration-200 focus:ring-2 focus:ring-[#3A86FF] focus:outline-none"
+          >
+            Back
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   // Teacher dashboard
-  if (role === "teacher" && authedTeacher && isTeacherAuthed) {
+  if (role === "teacher" && isAuthed && selectedClass && selectedSchool) {
     if (loading) {
       return (
         <div className="min-h-screen bg-[#121212] flex items-center justify-center">
@@ -166,10 +275,11 @@ export default function LoginPage() {
         <div className="flex justify-end mb-6">
           <button
             onClick={() => {
-              setIsTeacherAuthed(false);
-              setAuthedTeacher(null);
-              setTeacherLoginUsername("");
-              setTeacherLoginPassword("");
+              setIsAuthed(false);
+              setSelectedClass(null);
+              setAvailableClasses([]);
+              setSchoolEmail("");
+              setSchoolPassword("");
               setError("");
               setRole(null);
             }}
@@ -180,8 +290,9 @@ export default function LoginPage() {
           </button>
         </div>
         <TeacherDashboard
-          teacher={authedTeacher.username}
-          teacherId={teachers.find(t => t.username === authedTeacher.username)?.id || ''}
+          className={selectedClass.name}
+          classId={selectedClass.id}
+          schoolId={selectedSchool.id}
           goBack={goBack}
           students={students}
           assignments={assignments}
@@ -230,32 +341,70 @@ export default function LoginPage() {
         </div>
       )}
 
-      {/* Admin login */}
-      {role === "admin" && !isAdminAuthed && (
+      {/* Login form (both admin and teacher) */}
+      {role && !isAuthed && (
         <div className="w-11/12 max-w-md mx-auto bg-[#1C1C1E] rounded-xl p-8 flex flex-col gap-6 shadow-lg">
           <div>
             <h2 className="text-2xl sm:text-3xl font-bold text-white mb-1">
-              Welcome back
+              {role === "admin" ? "Admin Login" : "Teacher Login"}
             </h2>
-            <p className="text-[#EAEAEA] text-lg">Login to your admin account</p>
+            <p className="text-[#EAEAEA] text-lg">Login with school credentials</p>
           </div>
-          <form onSubmit={handleAdminLogin} className="flex flex-col gap-6">
+          
+          {schools.length === 0 ? (
+            <>
+              <div className="p-4 bg-[#451A1A] border border-[#D32F2F] rounded-lg">
+                <p className="text-[#ff4d4f] font-semibold mb-2">No schools found</p>
+                <p className="text-[#EAEAEA] text-sm">
+                  Please create a school first. You can use the API or database directly:
+                </p>
+                <code className="block mt-2 p-2 bg-[#121212] rounded text-xs text-[#3A86FF] overflow-x-auto">
+                  POST /api/schools {`{name, email, password}`}
+                </code>
+              </div>
+              <button
+                type="button"
+                onClick={goBack}
+                className="w-full px-6 py-3 rounded-xl bg-[#181F2A] text-white font-bold text-lg border border-[#3A86FF] shadow-lg hover:bg-[#3A86FF] hover:text-white transition-colors duration-200 focus:ring-2 focus:ring-[#3A86FF] focus:outline-none"
+              >
+                Back
+              </button>
+            </>
+          ) : (
+            <form onSubmit={handleLogin} className="flex flex-col gap-6">
+              <select
+                value={selectedSchool?.id || ""}
+                onChange={(e) => {
+                  const school = schools.find(s => s.id === e.target.value);
+                  setSelectedSchool(school || null);
+                  if (school) {
+                    setSchoolEmail(school.email);
+                  }
+                }}
+                className="w-full px-4 py-3 rounded-xl bg-[#121212] text-white border border-[#333] focus:border-[#3A86FF] focus:ring-2 focus:ring-[#3A86FF] focus:outline-none text-base"
+                required
+              >
+                <option value="">Select a school</option>
+                {schools.map((school) => (
+                  <option key={school.id} value={school.id}>
+                    {school.name}
+                  </option>
+                ))}
+              </select>
             <input
-              id="username"
-              type="text"
-              value={adminUsername}
-              onChange={(e) => setAdminUsername(e.target.value)}
+              type="email"
+              value={schoolEmail}
+              onChange={(e) => setSchoolEmail(e.target.value)}
               className="w-full px-4 py-3 rounded-xl bg-[#121212] text-white border border-[#333] focus:border-[#3A86FF] focus:ring-2 focus:ring-[#3A86FF] focus:outline-none text-base placeholder-[#888]"
-              placeholder="admin@example.com"
+              placeholder="School email"
               required
             />
             <input
-              id="password"
               type="password"
-              value={adminPassword}
-              onChange={(e) => setAdminPassword(e.target.value)}
+              value={schoolPassword}
+              onChange={(e) => setSchoolPassword(e.target.value)}
               className="w-full px-4 py-3 rounded-xl bg-[#121212] text-white border border-[#333] focus:border-[#3A86FF] focus:ring-2 focus:ring-[#3A86FF] focus:outline-none text-base placeholder-[#888]"
-              placeholder="Enter password"
+              placeholder="Password"
               required
             />
             {error && (
@@ -277,87 +426,7 @@ export default function LoginPage() {
               Back
             </button>
           </form>
-        </div>
-      )}
-
-      {/* Teacher login */}
-      {role === "teacher" && (
-        <div className="w-11/12 max-w-md mx-auto bg-[#1C1C1E] rounded-xl p-8 flex flex-col gap-6 shadow-lg">
-          <div>
-            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-1">Teacher Login</h2>
-            <p className="text-[#EAEAEA] text-lg">Enter your username and password</p>
-          </div>
-          <form
-            onSubmit={async (e) => {
-              e.preventDefault();
-              try {
-                const res = await fetch('/api/auth/teacher', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    username: teacherLoginUsername,
-                    password: teacherLoginPassword,
-                  }),
-                });
-                
-                const data = await res.json();
-                
-                if (data.success && data.teacher) {
-                  setIsTeacherAuthed(true);
-                  setAuthedTeacher({
-                    name: data.teacher.name,
-                    username: data.teacher.username,
-                    password: '', // Don't store password
-                  });
-                  setError("");
-                  setToastMessage("Teacher login successful");
-                } else {
-                  setError("Invalid username or password");
-                  setToastMessage("Teacher login failed");
-                }
-              } catch (error) {
-                console.error('Login error:', error);
-                setError("Login failed");
-                setToastMessage("Teacher login failed");
-              }
-            }}
-            className="flex flex-col gap-4"
-          >
-            <input
-              type="text"
-              value={teacherLoginUsername}
-              onChange={(e) => setTeacherLoginUsername(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl bg-[#121212] text-white border border-[#333] focus:border-[#3A86FF] focus:ring-2 focus:ring-[#3A86FF] focus:outline-none text-base placeholder-[#888]"
-              placeholder="Username"
-              required
-            />
-            <input
-              type="password"
-              value={teacherLoginPassword}
-              onChange={(e) => setTeacherLoginPassword(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl bg-[#121212] text-white border border-[#333] focus:border-[#3A86FF] focus:ring-2 focus:ring-[#3A86FF] focus:outline-none text-base placeholder-[#888]"
-              placeholder="Password"
-              required
-            />
-            {error && (
-              <p className="text-[#ff4d4f] font-semibold bg-[#451A1A] px-3 py-2 rounded-lg" role="alert">
-                {error}
-              </p>
-            )}
-            <button
-              type="submit"
-              className="w-full px-6 py-3 rounded-xl bg-[#3A86FF] text-white font-bold text-lg shadow-lg hover:bg-[#4361EE] transition-colors duration-200 focus:ring-2 focus:ring-[#3A86FF] focus:outline-none"
-            >
-              Login
-            </button>
-            <button
-              type="button"
-              onClick={() => setRole(null)}
-              className="w-full px-6 py-3 rounded-xl bg-[#181F2A] text-white font-bold text-lg border border-[#3A86FF] shadow-lg hover:bg-[#3A86FF] hover:text-white transition-colors duration-200 focus:ring-2 focus:ring-[#3A86FF] focus:outline-none"
-            >
-              Back
-            </button>
-          </form>
+          )}
         </div>
       )}
 

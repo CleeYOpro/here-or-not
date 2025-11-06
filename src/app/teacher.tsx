@@ -4,21 +4,23 @@ import { useMemo, useState, useEffect } from "react";
 import { IoMdArrowRoundBack } from "react-icons/io";
 import { BiUserCheck, BiUserX } from "react-icons/bi";
 import { LiaUserClockSolid } from "react-icons/lia";
-import type { AttendanceMap, Assignments, AttendanceStatus, Student } from "./page";
+import type { AttendanceMap, ClassAssignments, AttendanceStatus, Student } from "./page";
 
 interface TeacherProps {
-  teacher: string;
-  teacherId: string;
+  className: string;
+  classId: string;
+  schoolId: string;
   goBack: () => void;
   students: Student[];
-  assignments: Assignments;
+  assignments: ClassAssignments;
   attendance: AttendanceMap;
   setAttendance: React.Dispatch<React.SetStateAction<AttendanceMap>>;
 }
 
 export default function TeacherDashboard({
-  teacher,
-  teacherId,
+  className,
+  classId,
+  schoolId,
   goBack,
   students,
   assignments,
@@ -32,9 +34,9 @@ export default function TeacherDashboard({
   // Toast notification state
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  const assignedIds = new Set(assignments[teacher] ?? []);
+  const assignedIds = new Set(assignments[classId] ?? []);
   const myStudents = students.filter((s) => assignedIds.has(s.id));
-  const myTodayMap = attendance[teacher]?.[today] ?? {};
+  const myTodayMap = attendance[classId]?.[today] ?? {};
 
   const markAttendance = async (studentId: string, status: AttendanceStatus) => {
     try {
@@ -42,7 +44,8 @@ export default function TeacherDashboard({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          teacherId,
+          classId,
+          schoolId,
           studentId,
           date: today,
           status,
@@ -51,12 +54,12 @@ export default function TeacherDashboard({
       
       if (res.ok) {
         setAttendance((prev) => {
-          const teacherMap = prev[teacher] ?? {};
-          const dateMap = teacherMap[today] ?? {};
+          const classMap = prev[classId] ?? {};
+          const dateMap = classMap[today] ?? {};
           return {
             ...prev,
-            [teacher]: {
-              ...teacherMap,
+            [classId]: {
+              ...classMap,
               [today]: {
                 ...dateMap,
                 [studentId]: status,
@@ -106,9 +109,9 @@ export default function TeacherDashboard({
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-[#F1F1F1]">
-            Teacher Dashboard
+            Class Dashboard
           </h1>
-          <div className="text-base text-[#D1D1D1] mt-1">Welcome, {teacher}</div>
+          <div className="text-base text-[#D1D1D1] mt-1">Class: {className}</div>
         </div>
         <button
           onClick={goBack}

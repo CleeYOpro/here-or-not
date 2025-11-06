@@ -5,82 +5,124 @@ import { getDb } from '@/lib/db';
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const teacherId = searchParams.get('teacherId');
+    const schoolId = searchParams.get('schoolId');
+    const classId = searchParams.get('classId');
     const studentId = searchParams.get('studentId');
     const date = searchParams.get('date');
     const sql = getDb();
 
     let attendance;
     
-    if (teacherId && studentId && date) {
+    // Build query based on filters
+    if (classId && studentId && date) {
       attendance = await sql`
         SELECT 
-          a.id, a.date, a.status, a."studentId", a."teacherId",
+          a.id, a.date, a.status, a."studentId", a."classId", a."schoolId",
           s.name as student_name, s.standard as student_standard,
-          t.name as teacher_name, t.username as teacher_username
+          c.name as class_name,
+          sc.name as school_name
         FROM "Attendance" a
         LEFT JOIN "Student" s ON a."studentId" = s.id
-        LEFT JOIN "Teacher" t ON a."teacherId" = t.id
-        WHERE a."teacherId" = ${teacherId} AND a."studentId" = ${studentId} AND a.date = ${date}
+        LEFT JOIN "Class" c ON a."classId" = c.id
+        LEFT JOIN "School" sc ON a."schoolId" = sc.id
+        WHERE a."classId" = ${classId} AND a."studentId" = ${studentId} AND a.date = ${date}
         ORDER BY a.date DESC
       `;
-    } else if (teacherId && date) {
+    } else if (classId && date) {
       attendance = await sql`
         SELECT 
-          a.id, a.date, a.status, a."studentId", a."teacherId",
+          a.id, a.date, a.status, a."studentId", a."classId", a."schoolId",
           s.name as student_name, s.standard as student_standard,
-          t.name as teacher_name, t.username as teacher_username
+          c.name as class_name,
+          sc.name as school_name
         FROM "Attendance" a
         LEFT JOIN "Student" s ON a."studentId" = s.id
-        LEFT JOIN "Teacher" t ON a."teacherId" = t.id
-        WHERE a."teacherId" = ${teacherId} AND a.date = ${date}
+        LEFT JOIN "Class" c ON a."classId" = c.id
+        LEFT JOIN "School" sc ON a."schoolId" = sc.id
+        WHERE a."classId" = ${classId} AND a.date = ${date}
         ORDER BY a.date DESC
       `;
-    } else if (teacherId) {
+    } else if (classId) {
       attendance = await sql`
         SELECT 
-          a.id, a.date, a.status, a."studentId", a."teacherId",
+          a.id, a.date, a.status, a."studentId", a."classId", a."schoolId",
           s.name as student_name, s.standard as student_standard,
-          t.name as teacher_name, t.username as teacher_username
+          c.name as class_name,
+          sc.name as school_name
         FROM "Attendance" a
         LEFT JOIN "Student" s ON a."studentId" = s.id
-        LEFT JOIN "Teacher" t ON a."teacherId" = t.id
-        WHERE a."teacherId" = ${teacherId}
+        LEFT JOIN "Class" c ON a."classId" = c.id
+        LEFT JOIN "School" sc ON a."schoolId" = sc.id
+        WHERE a."classId" = ${classId}
+        ORDER BY a.date DESC
+      `;
+    } else if (schoolId && date) {
+      attendance = await sql`
+        SELECT 
+          a.id, a.date, a.status, a."studentId", a."classId", a."schoolId",
+          s.name as student_name, s.standard as student_standard,
+          c.name as class_name,
+          sc.name as school_name
+        FROM "Attendance" a
+        LEFT JOIN "Student" s ON a."studentId" = s.id
+        LEFT JOIN "Class" c ON a."classId" = c.id
+        LEFT JOIN "School" sc ON a."schoolId" = sc.id
+        WHERE a."schoolId" = ${schoolId} AND a.date = ${date}
+        ORDER BY a.date DESC
+      `;
+    } else if (schoolId) {
+      attendance = await sql`
+        SELECT 
+          a.id, a.date, a.status, a."studentId", a."classId", a."schoolId",
+          s.name as student_name, s.standard as student_standard,
+          c.name as class_name,
+          sc.name as school_name
+        FROM "Attendance" a
+        LEFT JOIN "Student" s ON a."studentId" = s.id
+        LEFT JOIN "Class" c ON a."classId" = c.id
+        LEFT JOIN "School" sc ON a."schoolId" = sc.id
+        WHERE a."schoolId" = ${schoolId}
         ORDER BY a.date DESC
       `;
     } else if (studentId) {
       attendance = await sql`
         SELECT 
-          a.id, a.date, a.status, a."studentId", a."teacherId",
+          a.id, a.date, a.status, a."studentId", a."classId", a."schoolId",
           s.name as student_name, s.standard as student_standard,
-          t.name as teacher_name, t.username as teacher_username
+          c.name as class_name,
+          sc.name as school_name
         FROM "Attendance" a
         LEFT JOIN "Student" s ON a."studentId" = s.id
-        LEFT JOIN "Teacher" t ON a."teacherId" = t.id
+        LEFT JOIN "Class" c ON a."classId" = c.id
+        LEFT JOIN "School" sc ON a."schoolId" = sc.id
         WHERE a."studentId" = ${studentId}
         ORDER BY a.date DESC
       `;
     } else if (date) {
       attendance = await sql`
         SELECT 
-          a.id, a.date, a.status, a."studentId", a."teacherId",
+          a.id, a.date, a.status, a."studentId", a."classId", a."schoolId",
           s.name as student_name, s.standard as student_standard,
-          t.name as teacher_name, t.username as teacher_username
+          c.name as class_name,
+          sc.name as school_name
         FROM "Attendance" a
         LEFT JOIN "Student" s ON a."studentId" = s.id
-        LEFT JOIN "Teacher" t ON a."teacherId" = t.id
+        LEFT JOIN "Class" c ON a."classId" = c.id
+        LEFT JOIN "School" sc ON a."schoolId" = sc.id
         WHERE a.date = ${date}
         ORDER BY a.date DESC
       `;
     } else {
       attendance = await sql`
         SELECT 
-          a.id, a.date, a.status, a."studentId", a."teacherId",
+          a.id, a.date, a.status, a."studentId", a."classId", a."schoolId",
           s.name as student_name, s.standard as student_standard,
-          t.name as teacher_name, t.username as teacher_username
+          c.name as class_name,
+          sc.name as school_name
         FROM "Attendance" a
         LEFT JOIN "Student" s ON a."studentId" = s.id
-        LEFT JOIN "Teacher" t ON a."teacherId" = t.id
+        LEFT JOIN "Class" c ON a."classId" = c.id
+        LEFT JOIN "School" sc ON a."schoolId" = sc.id
         ORDER BY a.date DESC
       `;
     }
@@ -91,16 +133,20 @@ export async function GET(request: NextRequest) {
       date: a.date,
       status: a.status,
       studentId: a.studentId,
-      teacherId: a.teacherId,
+      classId: a.classId,
+      schoolId: a.schoolId,
       student: {
         id: a.studentId,
         name: a.student_name,
         standard: a.student_standard,
       },
-      teacher: {
-        id: a.teacherId,
-        name: a.teacher_name,
-        username: a.teacher_username,
+      class: {
+        id: a.classId,
+        name: a.class_name,
+      },
+      school: {
+        id: a.schoolId,
+        name: a.school_name,
       },
     }));
 
@@ -117,9 +163,9 @@ export async function GET(request: NextRequest) {
 // POST mark attendance
 export async function POST(request: NextRequest) {
   try {
-    const { teacherId, studentId, date, status } = await request.json();
+    const { classId, schoolId, studentId, date, status } = await request.json();
 
-    if (!teacherId || !studentId || !date || !status) {
+    if (!classId || !schoolId || !studentId || !date || !status) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -128,30 +174,30 @@ export async function POST(request: NextRequest) {
 
     const sql = getDb();
 
-    // Check if attendance exists
+    // Check if attendance exists for this student on this date
     const existing = await sql`
       SELECT id FROM "Attendance"
-      WHERE "teacherId" = ${teacherId} AND "studentId" = ${studentId} AND date = ${date}
+      WHERE "studentId" = ${studentId} AND date = ${date}
       LIMIT 1
     `;
 
     let attendance;
     if (existing.length > 0) {
       // Update existing
-      const now = new Date().toISOString();
       attendance = await sql`
         UPDATE "Attendance"
-        SET status = ${status}, "updatedAt" = ${now}
-        WHERE "teacherId" = ${teacherId} AND "studentId" = ${studentId} AND date = ${date}
-        RETURNING id, date, status, "studentId", "teacherId"
+        SET status = ${status}, "classId" = ${classId}, "schoolId" = ${schoolId}, "updatedAt" = NOW()
+        WHERE "studentId" = ${studentId} AND date = ${date}
+        RETURNING id, date, status, "studentId", "classId", "schoolId"
       `;
     } else {
-      // Create new
-      const now = new Date().toISOString();
+      // Create new - generate CUID for id
+      const id = `a${Date.now().toString(36)}${Math.random().toString(36).substring(2, 15)}`;
+      
       attendance = await sql`
-        INSERT INTO "Attendance" ("teacherId", "studentId", date, status, "createdAt", "updatedAt")
-        VALUES (${teacherId}, ${studentId}, ${date}, ${status}, ${now}, ${now})
-        RETURNING id, date, status, "studentId", "teacherId"
+        INSERT INTO "Attendance" (id, "classId", "schoolId", "studentId", date, status, "createdAt", "updatedAt")
+        VALUES (${id}, ${classId}, ${schoolId}, ${studentId}, ${date}, ${status}, NOW(), NOW())
+        RETURNING id, date, status, "studentId", "classId", "schoolId"
       `;
     }
 

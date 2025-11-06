@@ -1,17 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 
-// GET attendance summary for a specific date (for admin dashboard)
+// GET attendance summary for a specific date (optionally filtered by schoolId)
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const date = searchParams.get('date') || new Date().toISOString().slice(0, 10);
+    const schoolId = searchParams.get('schoolId');
     const sql = getDb();
 
-    const attendance = await sql`
-      SELECT status FROM "Attendance"
-      WHERE date = ${date}
-    `;
+    let attendance;
+    if (schoolId) {
+      attendance = await sql`
+        SELECT status FROM "Attendance"
+        WHERE date = ${date} AND "schoolId" = ${schoolId}
+      `;
+    } else {
+      attendance = await sql`
+        SELECT status FROM "Attendance"
+        WHERE date = ${date}
+      `;
+    }
 
     const summary = {
       present: 0,

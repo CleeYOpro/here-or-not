@@ -17,10 +17,12 @@ export async function GET(request: NextRequest) {
     const sql = getDb();
     const attendance = await sql`
       SELECT 
-        a.id, a.date, a.status, a."studentId", a."teacherId",
-        t.name as teacher_name, t.username as teacher_username
+        a.id, a.date, a.status, a."studentId", a."classId", a."schoolId",
+        c.name as class_name,
+        sc.name as school_name
       FROM "Attendance" a
-      LEFT JOIN "Teacher" t ON a."teacherId" = t.id
+      LEFT JOIN "Class" c ON a."classId" = c.id
+      LEFT JOIN "School" sc ON a."schoolId" = sc.id
       WHERE a."studentId" = ${studentId}
       ORDER BY a.date DESC
     `;

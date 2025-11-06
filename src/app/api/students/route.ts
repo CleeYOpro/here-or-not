@@ -1,29 +1,67 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 
-// GET all students
-export async function GET() {
+// GET all students (optionally filtered by schoolId or classId)
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const schoolId = searchParams.get('schoolId');
+    const classId = searchParams.get('classId');
     const sql = getDb();
-    const students = await sql`
-      SELECT 
-        s.id, s.name, s.standard, s."teacherId",
-        t.id as teacher_id, t.name as teacher_name, t.username as teacher_username
-      FROM "Student" s
-      LEFT JOIN "Teacher" t ON s."teacherId" = t.id
-      ORDER BY s.name ASC
-    `;
+
+    let students;
+    if (classId) {
+      students = await sql`
+        SELECT 
+          s.id, s.name, s.standard, s."classId", s."schoolId",
+          c.id as class_id, c.name as class_name,
+          sc.id as school_id, sc.name as school_name, sc.email as school_email
+        FROM "Student" s
+        LEFT JOIN "Class" c ON s."classId" = c.id
+        LEFT JOIN "School" sc ON s."schoolId" = sc.id
+        WHERE s."classId" = ${classId}
+        ORDER BY s.name ASC
+      `;
+    } else if (schoolId) {
+      students = await sql`
+        SELECT 
+          s.id, s.name, s.standard, s."classId", s."schoolId",
+          c.id as class_id, c.name as class_name,
+          sc.id as school_id, sc.name as school_name, sc.email as school_email
+        FROM "Student" s
+        LEFT JOIN "Class" c ON s."classId" = c.id
+        LEFT JOIN "School" sc ON s."schoolId" = sc.id
+        WHERE s."schoolId" = ${schoolId}
+        ORDER BY s.name ASC
+      `;
+    } else {
+      students = await sql`
+        SELECT 
+          s.id, s.name, s.standard, s."classId", s."schoolId",
+          c.id as class_id, c.name as class_name,
+          sc.id as school_id, sc.name as school_name, sc.email as school_email
+        FROM "Student" s
+        LEFT JOIN "Class" c ON s."classId" = c.id
+        LEFT JOIN "School" sc ON s."schoolId" = sc.id
+        ORDER BY s.name ASC
+      `;
+    }
 
     // Transform to match expected format
     const formatted = students.map((s: any) => ({
       id: s.id,
       name: s.name,
       standard: s.standard,
-      teacherId: s.teacherId,
-      teacher: s.teacher_id ? {
-        id: s.teacher_id,
-        name: s.teacher_name,
-        username: s.teacher_username,
+      classId: s.classId,
+      schoolId: s.schoolId,
+      class: s.class_id ? {
+        id: s.class_id,
+        name: s.class_name,
+      } : null,
+      school: s.school_id ? {
+        id: s.school_id,
+        name: s.school_name,
+        email: s.school_email,
       } : null,
     }));
 
@@ -40,8 +78,15 @@ export async function GET() {
 // POST create new student
 export async function POST(request: NextRequest) {
   try {
-    const { id, name, standard, teacherId } = await request.json();
+    const { id, name, standard, classId, schoolId } = await request.json();
     const sql = getDb();
+
+    if (!schoolId) {
+      return NextResponse.json(
+        { error: 'schoolId is required' },
+        { status: 400 }
+      );
+    }
 
     // Check if student already exists
     const existing = await sql`
@@ -56,9 +101,9 @@ export async function POST(request: NextRequest) {
     }
 
     const students = await sql`
-      INSERT INTO "Student" (id, name, standard, "teacherId")
-      VALUES (${id}, ${name}, ${standard || null}, ${teacherId || null})
-      RETURNING id, name, standard, "teacherId"
+      INSERT INTO "Student" (id, name, standard, "classId", "schoolId", "createdAt", "updatedAt")
+      VALUES (${id}, ${name}, ${standard || null}, ${classId || null}, ${schoolId}, NOW(), NOW())
+      RETURNING id, name, standard, "classId", "schoolId"
     `;
 
     return NextResponse.json(students[0]);
@@ -100,7 +145,7 @@ export async function DELETE(request: NextRequest) {
 // PUT update student
 export async function PUT(request: NextRequest) {
   try {
-    const { id, newId, name, standard, teacherId } = await request.json();
+    const { id, newId, name, standard, classId, schoolId } = await request.json();
 
     if (!id) {
       return NextResponse.json(
@@ -112,9 +157,9 @@ export async function PUT(request: NextRequest) {
     const sql = getDb();
     const students = await sql`
       UPDATE "Student"
-      SET id = ${newId || id}, name = ${name}, standard = ${standard || null}, "teacherId" = ${teacherId || null}
+      SET id = ${newId || id}, name = ${name}, standard = ${standard || null}, "classId" = ${classId || null}, "schoolId" = ${schoolId}, "updatedAt" = NOW()
       WHERE id = ${id}
-      RETURNING id, name, standard, "teacherId"
+      RETURNING id, name, standard, "classId", "schoolId"
     `;
 
     if (students.length === 0) {
@@ -130,7 +175,8 @@ export async function PUT(request: NextRequest) {
       id: student.id,
       name: student.name,
       standard: student.standard,
-      teacherId: student.teacherId
+      classId: student.classId,
+      schoolId: student.schoolId
     });
   } catch (error) {
     console.error('Update student error:', error);

@@ -3,6 +3,7 @@
 import type { School, Class } from "./page";
 import { useMemo, useState } from "react";
 import type { AttendanceMap, ClassAssignments, Student, AttendanceStatus } from "./page";
+import StudentSearchOverview from "./components/StudentSearchOverview";
 
 interface AdminProps {
   goBack: () => void;
@@ -59,6 +60,19 @@ export default function AdminDashboard({
   const [studentId, setStudentId] = useState("");
   const [studentStandard, setStudentStandard] = useState("");
   const [studentClass, setStudentClass] = useState("");
+  
+  // CSV upload state
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadMessage, setUploadMessage] = useState<string | null>(null);
+  
+  // Inline editing state
+  const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<{
+    name: string;
+    standard: string;
+    classId: string;
+  }>({ name: "", standard: "", classId: "" });
 
   // Add class
   const addClass = async () => {
@@ -189,6 +203,124 @@ export default function AdminDashboard({
       console.error('Error deleting student:', error);
     }
   };
+  
+  // CSV Upload handler
+  const handleCsvUpload = async () => {
+    if (!csvFile) return;
+    
+    setUploading(true);
+    setUploadMessage(null);
+    
+    try {
+      const formData = new FormData();
+      formData.append('file', csvFile);
+      formData.append('schoolId', school.id);
+      
+      const res = await fetch('/api/students/csv', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      const data = await res.json();
+      
+      if (res.ok) {
+        setUploadMessage(`✅ Success! Created: ${data.results.created}, Updated: ${data.results.updated}, Classes Created: ${data.results.classesCreated}`);
+        
+        // Refresh students and classes
+        const studentsRes = await fetch(`/api/students?schoolId=${school.id}`);
+        const studentsData = await studentsRes.json();
+        setStudents(studentsData);
+        
+        const classesRes = await fetch(`/api/classes?schoolId=${school.id}`);
+        const classesData = await classesRes.json();
+        setClasses(classesData);
+        
+        // Rebuild assignments
+        const assignmentsMap: ClassAssignments = {};
+        studentsData.forEach((student: any) => {
+          if (student.classId) {
+            if (!assignmentsMap[student.classId]) {
+              assignmentsMap[student.classId] = [];
+            }
+            assignmentsMap[student.classId].push(student.id);
+          }
+        });
+        setAssignments(assignmentsMap);
+        
+        setCsvFile(null);
+      } else {
+        setUploadMessage(`❌ Error: ${data.error}${data.details ? ' - ' + data.details.join(', ') : ''}`);
+      }
+    } catch (error) {
+      console.error('CSV upload error:', error);
+      setUploadMessage('❌ Failed to upload CSV file');
+    } finally {
+      setUploading(false);
+    }
+  };
+  
+  // Start editing a student
+  const startEdit = (student: Student) => {
+    setEditingStudentId(student.id);
+    setEditForm({
+      name: student.name,
+      standard: student.standard || "",
+      classId: student.classId || "",
+    });
+  };
+  
+  // Cancel editing
+  const cancelEdit = () => {
+    setEditingStudentId(null);
+    setEditForm({ name: "", standard: "", classId: "" });
+  };
+  
+  // Save edited student
+  const saveEdit = async (studentId: string) => {
+    try {
+      const res = await fetch('/api/students', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: studentId,
+          name: editForm.name,
+          standard: editForm.standard,
+          classId: editForm.classId || null,
+          schoolId: school.id,
+        }),
+      });
+      
+      if (res.ok) {
+        const updatedStudent = await res.json();
+        setStudents((prev) => prev.map((s) => s.id === studentId ? updatedStudent : s));
+        
+        // Update assignments
+        setAssignments((prev) => {
+          const newAssignments = { ...prev };
+          // Remove from old class
+          Object.keys(newAssignments).forEach((classId) => {
+            newAssignments[classId] = newAssignments[classId].filter((sid) => sid !== studentId);
+          });
+          // Add to new class
+          if (editForm.classId) {
+            if (!newAssignments[editForm.classId]) {
+              newAssignments[editForm.classId] = [];
+            }
+            newAssignments[editForm.classId].push(studentId);
+          }
+          return newAssignments;
+        });
+        
+        cancelEdit();
+      } else {
+        const errorData = await res.json();
+        alert(`Failed to update student: ${errorData.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error updating student:', error);
+      alert(`Error updating student: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#121212] p-6 md:p-12 font-sans text-[#EAEAEA]">
@@ -252,51 +384,33 @@ export default function AdminDashboard({
                 </div>
               </div>
             </div>
-
-            {/* Classes Overview */}
-            <div className="bg-[#1E1E1E] rounded-xl p-6 border border-[#2D2D2D]">
-              <h2 className="text-2xl font-bold text-[#F1F1F1] mb-4">Classes ({classes.length})</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {classes.map((cls) => (
-                  <div key={cls.id} className="bg-[#121212] p-4 rounded-lg border border-[#2D2D2D]">
-                    <div className="text-[#F1F1F1] font-semibold text-lg">{cls.name}</div>
-                    <div className="text-[#EAEAEA] text-sm mt-1">
-                      {assignments[cls.id]?.length || 0} students
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Students Overview */}
-            <div className="bg-[#1E1E1E] rounded-xl p-6 border border-[#2D2D2D]">
-              <h2 className="text-2xl font-bold text-[#F1F1F1] mb-4">All Students ({students.length})</h2>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-[#2D2D2D]">
-                      <th className="text-left py-3 px-4 text-[#EAEAEA]">ID</th>
-                      <th className="text-left py-3 px-4 text-[#EAEAEA]">Name</th>
-                      <th className="text-left py-3 px-4 text-[#EAEAEA]">Standard</th>
-                      <th className="text-left py-3 px-4 text-[#EAEAEA]">Class</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {students.map((student) => {
-                      const studentClass = classes.find(c => c.id === student.classId);
-                      return (
-                        <tr key={student.id} className="border-b border-[#2D2D2D] hover:bg-[#2D2D2D]">
-                          <td className="py-3 px-4 text-[#EAEAEA]">{student.id}</td>
-                          <td className="py-3 px-4 text-[#F1F1F1]">{student.name}</td>
-                          <td className="py-3 px-4 text-[#EAEAEA]">{student.standard || '-'}</td>
-                          <td className="py-3 px-4 text-[#EAEAEA]">{studentClass?.name || 'Unassigned'}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            {/* Student Search & Attendance Overview */}
+            <StudentSearchOverview
+              students={students}
+              classes={classes}
+              schoolId={school.id}
+              onStudentUpdate={(updatedStudent) => {
+                setStudents((prev) => prev.map((s) => s.id === updatedStudent.id ? updatedStudent : s));
+                // Update assignments if class changed
+                setAssignments((prev) => {
+                  const newAssignments = { ...prev };
+                  // Remove from all classes
+                  Object.keys(newAssignments).forEach((classId) => {
+                    newAssignments[classId] = newAssignments[classId].filter((sid) => sid !== updatedStudent.id);
+                  });
+                  // Add to new class
+                  if (updatedStudent.classId) {
+                    if (!newAssignments[updatedStudent.classId]) {
+                      newAssignments[updatedStudent.classId] = [];
+                    }
+                    newAssignments[updatedStudent.classId].push(updatedStudent.id);
+                  }
+                  return newAssignments;
+                });
+              }}
+            />
+            
+            
           </div>
         )}
 
@@ -377,6 +491,34 @@ export default function AdminDashboard({
               <div className="bg-[#1E1E1E] rounded-xl p-6 border border-[#2D2D2D]">
                 <h2 className="text-2xl font-bold text-[#F1F1F1] mb-6">Manage Students</h2>
                 
+                {/* CSV Upload Section */}
+                <div className="mb-8 p-4 bg-[#121212] rounded-lg border border-[#2D2D2D]">
+                  <h3 className="text-lg font-semibold text-[#F1F1F1] mb-4">Upload Students via CSV</h3>
+                  <p className="text-[#EAEAEA] text-sm mb-4">
+                    CSV must contain columns: <strong>name</strong>, <strong>number</strong> (5 digits), <strong>grade</strong>, <strong>class</strong>
+                  </p>
+                  <div className="flex flex-col md:flex-row gap-4">
+                    <input
+                      type="file"
+                      accept=".csv"
+                      onChange={(e) => setCsvFile(e.target.files?.[0] || null)}
+                      className="flex-1 px-4 py-2 rounded-lg bg-[#1E1E1E] text-white border border-[#333] focus:border-[#3A86FF] focus:outline-none file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-[#3A86FF] file:text-white file:cursor-pointer hover:file:bg-[#4361EE]"
+                    />
+                    <button
+                      onClick={handleCsvUpload}
+                      disabled={!csvFile || uploading}
+                      className="px-6 py-2 rounded-lg bg-[#3A86FF] text-white font-semibold hover:bg-[#4361EE] transition-colors duration-200 disabled:bg-[#2D2D2D] disabled:cursor-not-allowed"
+                    >
+                      {uploading ? 'Uploading...' : 'Upload CSV'}
+                    </button>
+                  </div>
+                  {uploadMessage && (
+                    <div className={`mt-4 p-3 rounded-lg ${uploadMessage.startsWith('✅') ? 'bg-[#1B5E20] text-[#4CAF50]' : 'bg-[#451A1A] text-[#ff4d4f]'}`}>
+                      {uploadMessage}
+                    </div>
+                  )}
+                </div>
+                
                 {/* Add Student Form */}
                 <div className="mb-8 p-4 bg-[#121212] rounded-lg border border-[#2D2D2D]">
                   <h3 className="text-lg font-semibold text-[#F1F1F1] mb-4">Add New Student</h3>
@@ -400,7 +542,7 @@ export default function AdminDashboard({
                       type="text"
                       value={studentStandard}
                       onChange={(e) => setStudentStandard(e.target.value)}
-                      placeholder="Standard (optional)"
+                      placeholder="Grade (optional)"
                       className="px-4 py-2 rounded-lg bg-[#1E1E1E] text-white border border-[#333] focus:border-[#3A86FF] focus:outline-none"
                     />
                     <select
@@ -422,27 +564,110 @@ export default function AdminDashboard({
                   </button>
                 </div>
 
-                {/* Students List */}
-                <div className="space-y-3">
-                  {students.map((student) => {
-                    const studentClass = classes.find(c => c.id === student.classId);
-                    return (
-                      <div key={student.id} className="flex items-center justify-between p-4 bg-[#121212] rounded-lg border border-[#2D2D2D]">
-                        <div>
-                          <div className="text-[#F1F1F1] font-semibold">{student.name}</div>
-                          <div className="text-[#EAEAEA] text-sm">
-                            ID: {student.id} | Class: {studentClass?.name || 'Unassigned'} | Standard: {student.standard || '-'}
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => deleteStudent(student.id)}
-                          className="px-4 py-2 rounded-lg bg-[#D32F2F] text-white font-semibold hover:bg-[#C62828] transition-colors duration-200"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    );
-                  })}
+                {/* Editable Students Table */}
+                <div className="overflow-x-auto">
+                  <h3 className="text-lg font-semibold text-[#F1F1F1] mb-4">All Students ({students.length})</h3>
+                  <table className="w-full">
+                    <thead>
+                      <tr className="bg-[#121212] border-b border-[#2D2D2D]">
+                        <th className="px-4 py-3 text-left text-[#F1F1F1] font-semibold">ID</th>
+                        <th className="px-4 py-3 text-left text-[#F1F1F1] font-semibold">Name</th>
+                        <th className="px-4 py-3 text-left text-[#F1F1F1] font-semibold">Grade</th>
+                        <th className="px-4 py-3 text-left text-[#F1F1F1] font-semibold">Class</th>
+                        <th className="px-4 py-3 text-left text-[#F1F1F1] font-semibold">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {students.map((student) => {
+                        const isEditing = editingStudentId === student.id;
+                        const studentClass = classes.find(c => c.id === student.classId);
+                        
+                        return (
+                          <tr key={student.id} className="border-b border-[#2D2D2D] hover:bg-[#121212] transition-colors">
+                            <td className="px-4 py-3 text-[#EAEAEA]">{student.id}</td>
+                            <td className="px-4 py-3">
+                              {isEditing ? (
+                                <input
+                                  type="text"
+                                  value={editForm.name}
+                                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                                  className="w-full px-3 py-1 rounded bg-[#121212] text-white border border-[#3A86FF] focus:outline-none"
+                                />
+                              ) : (
+                                <span className="text-[#F1F1F1]">{student.name}</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              {isEditing ? (
+                                <input
+                                  type="text"
+                                  value={editForm.standard}
+                                  onChange={(e) => setEditForm({ ...editForm, standard: e.target.value })}
+                                  className="w-full px-3 py-1 rounded bg-[#121212] text-white border border-[#3A86FF] focus:outline-none"
+                                />
+                              ) : (
+                                <span className="text-[#EAEAEA]">{student.standard || '-'}</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              {isEditing ? (
+                                <select
+                                  value={editForm.classId}
+                                  onChange={(e) => setEditForm({ ...editForm, classId: e.target.value })}
+                                  className="w-full px-3 py-1 rounded bg-[#121212] text-white border border-[#3A86FF] focus:outline-none"
+                                >
+                                  <option value="">Unassigned</option>
+                                  {classes.map((cls) => (
+                                    <option key={cls.id} value={cls.id}>{cls.name}</option>
+                                  ))}
+                                </select>
+                              ) : (
+                                <span className="text-[#EAEAEA]">{studentClass?.name || 'Unassigned'}</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              {isEditing ? (
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={() => saveEdit(student.id)}
+                                    className="px-3 py-1 rounded bg-[#4CAF50] text-white text-sm font-semibold hover:bg-[#45A049] transition-colors"
+                                  >
+                                    Save
+                                  </button>
+                                  <button
+                                    onClick={cancelEdit}
+                                    className="px-3 py-1 rounded bg-[#757575] text-white text-sm font-semibold hover:bg-[#616161] transition-colors"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={() => startEdit(student)}
+                                    className="px-3 py-1 rounded bg-[#3A86FF] text-white text-sm font-semibold hover:bg-[#4361EE] transition-colors"
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    onClick={() => deleteStudent(student.id)}
+                                    className="px-3 py-1 rounded bg-[#D32F2F] text-white text-sm font-semibold hover:bg-[#C62828] transition-colors"
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  {students.length === 0 && (
+                    <div className="text-center py-8 text-[#EAEAEA]">
+                      No students found. Add students manually or upload a CSV file.
+                    </div>
+                  )}
                 </div>
               </div>
             )}

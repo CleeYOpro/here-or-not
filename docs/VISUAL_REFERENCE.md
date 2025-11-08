@@ -10,20 +10,11 @@ Quick visual diagrams and tables for the Here or Not system.
 
 ```
 ┌──────────────────┐
-│      Admin       │
-├──────────────────┤
-│ PK  id           │
-│     username  🔑 │
-│     password     │
-└──────────────────┘
-
-
-┌──────────────────┐
-│     Teacher      │
+│      School      │
 ├──────────────────┤
 │ PK  id           │
 │     name         │
-│     username  🔑 │
+│     email     🔑 │
 │     password     │
 │     createdAt    │
 │     updatedAt    │
@@ -31,28 +22,38 @@ Quick visual diagrams and tables for the Here or Not system.
          │
          │ 1:N
          │
-    ┌────┴────────────────────┐
-    │                         │
-    ↓                         ↓
-┌──────────────────┐   ┌──────────────────┐
-│     Student      │   │   Attendance     │
-├──────────────────┤   ├──────────────────┤
-│ PK  id           │   │ PK  id           │
-│     name         │   │     date         │
-│     standard     │   │     status       │
-│ FK  teacherId ───┘   │ FK  studentId ───┘
-│     createdAt    │   │ FK  teacherId
-│     updatedAt    │   │     createdAt
-└────────┬─────────┘   │     updatedAt
-         │             └──────────────────┘
-         │ 1:N
-         │
-         └─────────────────┐
-                           │
-                           ↓
-                    ┌──────────────────┐
-                    │   Attendance     │
-                    └──────────────────┘
+    ┌────┴────────────────────────────┐
+    │                │                │
+    ↓                ↓                ↓
+┌──────────────────┐ ┌──────────────────┐ ┌──────────────────┐
+│      Admin       │ │      Class       │ │     Student      │
+├──────────────────┤ ├──────────────────┤ ├──────────────────┤
+│ PK  id           │ │ PK  id           │ │ PK  id           │
+│     name         │ │     name         │ │     name         │
+│     email     🔑 │ │ FK  schoolId ────┘ │     standard     │
+│     password     │ │     createdAt    │ │ FK  classId      │
+│ FK  schoolId ────┘ │     updatedAt    │ │ FK  schoolId ────┘
+└──────────────────┘ └────────┬─────────┘ │     createdAt    │
+                              │           │     updatedAt    │
+                              │ 1:N       └────────┬─────────┘
+                              │                    │
+                              │                    │ 1:N
+                              │                    │
+                              └────────┬───────────┘
+                                       │
+                                       ↓
+                                ┌──────────────────┐
+                                │   Attendance     │
+                                ├──────────────────┤
+                                │ PK  id           │
+                                │     date         │
+                                │     status       │
+                                │ FK  studentId    │
+                                │ FK  classId      │
+                                │ FK  schoolId     │
+                                │     createdAt    │
+                                │     updatedAt    │
+                                └──────────────────┘
 
 Legend:
 PK = Primary Key
@@ -64,14 +65,14 @@ FK = Foreign Key
 
 ## 📊 Table Comparison
 
-| Feature | Admin | Teacher | Student | Attendance |
-|---------|-------|---------|---------|------------|
-| **Primary Key** | CUID | CUID | Custom String | CUID |
-| **Timestamps** | ❌ | ✅ | ✅ | ✅ |
-| **Foreign Keys** | 0 | 0 | 1 (teacherId) | 2 (studentId, teacherId) |
-| **Unique Constraints** | username | username | id | (teacherId, studentId, date) |
-| **Indexes** | 2 | 2 | 2 | 5 |
-| **Relations** | None | 1:N Students, 1:N Attendance | N:1 Teacher, 1:N Attendance | N:1 Student, N:1 Teacher |
+| Feature | School | Admin | Class | Student | Attendance |
+|---------|--------|-------|-------|---------|------------|
+| **Primary Key** | CUID | CUID | CUID | Custom String | CUID |
+| **Timestamps** | ✅ | ❌ | ✅ | ✅ | ✅ |
+| **Foreign Keys** | 0 | 1 (schoolId) | 1 (schoolId) | 2 (classId, schoolId) | 3 (studentId, classId, schoolId) |
+| **Unique Constraints** | email | email | - | id | (studentId, date) |
+| **Indexes** | 2 | 2 | 2 | 3 | 5 |
+| **Relations** | 1:N Admins, Classes, Students, Attendance | N:1 School | N:1 School, 1:N Students, Attendance | N:1 Class, N:1 School, 1:N Attendance | N:1 Student, N:1 Class, N:1 School |
 
 ---
 
@@ -83,16 +84,17 @@ FK = Foreign Key
 ┌─────────────┐
 │   Teacher   │
 │  Dashboard  │
+│  (Class)    │
 └──────┬──────┘
        │ Clicks "Present"
        ↓
 ┌─────────────────────────────────────────┐
 │  Frontend (React Component)             │
-│  • Collects: teacherId, studentId,      │
-│              date, status                │
+│  • Collects: classId, schoolId,         │
+│              studentId, date, status     │
 └──────┬──────────────────────────────────┘
        │ POST /api/attendance
-       │ { teacherId, studentId, date, status }
+       │ { classId, schoolId, studentId, date, status }
        ↓
 ┌─────────────────────────────────────────┐
 │  API Route (route.ts)                   │
@@ -105,14 +107,14 @@ FK = Foreign Key
 │  Database Query                         │
 │  • Check existing attendance            │
 │  • If exists: UPDATE                    │
-│  • If not: INSERT                       │
+│  • If not: INSERT with generated ID     │
 └──────┬──────────────────────────────────┘
        │
        ↓
 ┌─────────────────────────────────────────┐
 │  Response                               │
 │  { id, date, status, studentId,         │
-│    teacherId }                          │
+│    classId, schoolId }                  │
 └──────┬──────────────────────────────────┘
        │
        ↓
@@ -139,7 +141,8 @@ FK = Foreign Key
 │  • id: "12345"                          │
 │  • name: "Alice Johnson"                │
 │  • standard: "10th Grade"               │
-│  • teacherId: "clxyz456def"             │
+│  • classId: "clxyz456def"               │
+│  • schoolId: "sxyz789ghi"               │
 └──────┬──────────────────────────────────┘
        │ POST /api/students
        ↓
@@ -154,7 +157,8 @@ FK = Foreign Key
 ┌─────────────────────────────────────────┐
 │  Database                               │
 │  INSERT INTO "Student"                  │
-│  VALUES (id, name, standard, teacherId) │
+│  VALUES (id, name, standard,            │
+│          classId, schoolId)             │
 │  RETURNING *                            │
 └──────┬──────────────────────────────────┘
        │
@@ -163,7 +167,8 @@ FK = Foreign Key
 │  Response                               │
 │  { id: "12345", name: "Alice Johnson",  │
 │    standard: "10th Grade",              │
-│    teacherId: "clxyz456def" }           │
+│    classId: "clxyz456def",              │
+│    schoolId: "sxyz789ghi" }             │
 └──────┬──────────────────────────────────┘
        │
        ↓
@@ -182,18 +187,24 @@ FK = Foreign Key
 /api
 ├── /auth
 │   ├── /admin
-│   │   └── POST    Login admin
+│   │   └── POST    Login admin (school-based)
 │   └── /teacher
-│       └── POST    Login teacher
+│       └── POST    Login teacher (school-based)
 │
-├── /teachers
-│   ├── GET         List all teachers
-│   ├── POST        Create teacher
-│   ├── PUT         Update teacher
-│   └── DELETE      Delete teacher
+├── /schools
+│   ├── GET         List all schools
+│   ├── POST        Create school
+│   ├── PUT         Update school
+│   └── DELETE      Delete school
+│
+├── /classes
+│   ├── GET         List all classes (filter by schoolId)
+│   ├── POST        Create class
+│   ├── PUT         Update class
+│   └── DELETE      Delete class
 │
 ├── /students
-│   ├── GET         List all students
+│   ├── GET         List all students (filter by schoolId/classId)
 │   ├── POST        Create student
 │   ├── PUT         Update student
 │   ├── DELETE      Delete student
@@ -201,11 +212,11 @@ FK = Foreign Key
 │       └── POST    Bulk import
 │
 └── /attendance
-    ├── GET         Query records
+    ├── GET         Query records (filter by schoolId/classId)
     ├── POST        Mark/update
     ├── DELETE      Delete record
     ├── /summary
-    │   └── GET     Daily stats
+    │   └── GET     Daily stats (filter by schoolId)
     └── /student
         └── GET     Student history
 ```
@@ -253,24 +264,23 @@ FK = Foreign Key
 │  Login   │
 │  Page    │
 └────┬─────┘
-     │ Enter credentials
+     │ Select school & enter credentials
      ↓
-┌─────────────────────┐
-│  POST /api/auth/    │
-│  admin              │
-│  { username, pass } │
-└────┬────────────────┘
+┌─────────────────────────────┐
+│  POST /api/auth/admin       │
+│  { schoolId, email, pass }  │
+└────┬────────────────────────┘
      │
      ↓
-┌─────────────────────┐
-│  Hardcoded Check    │
-│  username === 'c'   │
-│  password === 'c'   │
-└────┬────────────────┘
+┌─────────────────────────────────────┐
+│  Database Query                     │
+│  1. Verify school credentials       │
+│  2. Check admin exists for school   │
+└────┬────────────────────────────────┘
      │
      ├─ ✅ Valid
-     │    └─→ { success: true }
-     │         └─→ Redirect to /admin
+     │    └─→ { success: true, school: {...}, admin: {...} }
+     │         └─→ Load admin dashboard
      │
      └─ ❌ Invalid
           └─→ { success: false, error: "..." }
@@ -284,27 +294,26 @@ FK = Foreign Key
 │  Login   │
 │  Page    │
 └────┬─────┘
-     │ Enter credentials
+     │ Select school & enter credentials
      ↓
-┌─────────────────────┐
-│  POST /api/auth/    │
-│  teacher            │
-│  { username, pass } │
-└────┬────────────────┘
+┌─────────────────────────────┐
+│  POST /api/auth/teacher     │
+│  { schoolId, email, pass }  │
+└────┬────────────────────────┘
      │
      ↓
 ┌─────────────────────────────────────┐
 │  Database Query                     │
-│  SELECT * FROM "Teacher"            │
-│  WHERE username = ? AND password = ?│
+│  1. Verify school credentials       │
+│  2. Fetch classes for school        │
 └────┬────────────────────────────────┘
      │
-     ├─ ✅ Found
-     │    └─→ { success: true, teacher: {...} }
-     │         └─→ Store teacher data
-     │              └─→ Redirect to /teacher
+     ├─ ✅ Valid
+     │    └─→ { success: true, school: {...}, classes: [...] }
+     │         └─→ Show class selection
+     │              └─→ Load class dashboard
      │
-     └─ ❌ Not Found
+     └─ ❌ Invalid
           └─→ { success: false, error: "..." }
                └─→ Show error message
 ```
@@ -321,8 +330,8 @@ Attendance Table
 │   └── id (B-tree)
 │
 ├── Unique Composite Index
-│   └── (teacherId, studentId, date)
-│       • Prevents duplicate attendance
+│   └── (studentId, date)
+│       • Prevents duplicate attendance per day
 │       • Enables fast upsert operations
 │
 ├── Date Index
@@ -335,9 +344,14 @@ Attendance Table
 │       • Fast student history lookup
 │       • JOIN optimization
 │
-└── Teacher Index
-    └── teacherId (B-tree)
-        • Fast teacher records lookup
+├── Class Index
+│   └── classId (B-tree)
+│       • Fast class records lookup
+│       • JOIN optimization
+│
+└── School Index
+    └── schoolId (B-tree)
+        • Fast school-wide queries
         • JOIN optimization
 ```
 
@@ -345,20 +359,44 @@ Attendance Table
 
 ## 🔄 Cascade Delete Behavior
 
-### When Teacher is Deleted
+### When School is Deleted
 
 ```
-DELETE Teacher (id: "abc123")
+DELETE School (id: "abc123")
          │
-         ├─→ Student.teacherId
+         ├─→ Admin.schoolId
          │   └─→ SET NULL
-         │       • Students remain
-         │       • teacherId becomes NULL
+         │       • Admins remain
+         │       • schoolId becomes NULL
          │
-         └─→ Attendance.teacherId
+         ├─→ Class.schoolId
+         │   └─→ CASCADE DELETE
+         │       • All classes deleted
+         │       • Cascades to students/attendance
+         │
+         ├─→ Student.schoolId
+         │   └─→ CASCADE DELETE
+         │       • All students deleted
+         │       • Cascades to attendance
+         │
+         └─→ Attendance.schoolId
              └─→ CASCADE DELETE
                  • All attendance records deleted
-                 • No orphaned records
+```
+
+### When Class is Deleted
+
+```
+DELETE Class (id: "xyz456")
+         │
+         ├─→ Student.classId
+         │   └─→ SET NULL
+         │       • Students remain
+         │       • classId becomes NULL
+         │
+         └─→ Attendance.classId
+             └─→ CASCADE DELETE
+                 • All attendance records deleted
 ```
 
 ### When Student is Deleted
@@ -381,14 +419,15 @@ DELETE Student (id: "12345")
 ```
 Fast Queries (< 50ms):
 ├── SELECT with indexed columns
-│   ├── WHERE teacherId = ?
+│   ├── WHERE schoolId = ?
+│   ├── WHERE classId = ?
 │   ├── WHERE studentId = ?
 │   ├── WHERE date = ?
-│   └── WHERE (teacherId, studentId, date) = (?, ?, ?)
+│   └── WHERE (studentId, date) = (?, ?)
 │
 └── JOINs on foreign keys
-    ├── Student JOIN Teacher
-    └── Attendance JOIN Student JOIN Teacher
+    ├── Student JOIN Class JOIN School
+    └── Attendance JOIN Student JOIN Class JOIN School
 
 Slow Queries (> 100ms):
 ├── Full table scans
@@ -458,7 +497,9 @@ here-or-not/
 │   │   │   │   │   └── 📄 route.ts
 │   │   │   │   └── 📂 teacher/
 │   │   │   │       └── 📄 route.ts
-│   │   │   ├── 📂 teachers/
+│   │   │   ├── 📂 schools/
+│   │   │   │   └── 📄 route.ts
+│   │   │   ├── 📂 classes/
 │   │   │   │   └── 📄 route.ts
 │   │   │   ├── 📂 students/
 │   │   │   │   ├── 📄 route.ts
@@ -470,11 +511,9 @@ here-or-not/
 │   │   │       │   └── 📄 route.ts
 │   │   │       └── 📂 student/
 │   │   │           └── 📄 route.ts
-│   │   ├── 📄 page.tsx
-│   │   ├── 📂 admin/
-│   │   │   └── 📄 page.tsx
-│   │   └── 📂 teacher/
-│   │       └── 📄 page.tsx
+│   │   ├── 📄 page.tsx (Login & Role Selection)
+│   │   ├── 📄 admin.tsx (Admin Dashboard Component)
+│   │   └── 📄 teacher.tsx (Teacher Dashboard Component)
 │   └── 📂 lib/
 │       ├── 📄 db.ts
 │       └── 📄 prisma.ts

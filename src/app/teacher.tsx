@@ -27,7 +27,7 @@ export default function TeacherDashboard({
   attendance,
   setAttendance,
 }: TeacherProps) {
-  // Calendar logic
+  // Calendar logicojl
   const [selectedDate, setSelectedDate] = useState(new Date());
   const today = useMemo(() => selectedDate.toISOString().slice(0, 10), [selectedDate]);
 

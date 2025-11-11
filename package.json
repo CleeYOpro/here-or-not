@@ -15,7 +15,7 @@
   "dependencies": {
     "@fullcalendar/daygrid": "^6.1.19",
     "@neondatabase/serverless": "^1.0.2",
-    "@prisma/client": "^6.17.1",
+    "@prisma/client": "^6.19.0",
     "jquery": "^3.7.1",
     "lodash": "^4.17.21",
     "next": "15.5.2",

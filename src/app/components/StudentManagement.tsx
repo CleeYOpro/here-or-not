@@ -1,14 +1,14 @@
 "use client";
 
 import { useState } from 'react';
-import type { Student, Assignments } from '../page';
+import type { Student, ClassAssignments } from '../page';
 
 interface StudentManagementProps {
   students: Student[];
   setStudents: React.Dispatch<React.SetStateAction<Student[]>>;
   teachers: string[];
-  assignments: Assignments;
-  setAssignments: React.Dispatch<React.SetStateAction<Assignments>>;
+  assignments: ClassAssignments;
+  setAssignments: React.Dispatch<React.SetStateAction<ClassAssignments>>;
   deleteStudent: (id: string) => void;
 }
 

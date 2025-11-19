@@ -99,8 +99,8 @@ export async function PUT(request: NextRequest) {
     const sql = getDb();
     
     // Build update query dynamically based on provided fields
-    let updateFields = [];
-    let values: any[] = [];
+    const updateFields: string[] = [];
+    const values: (string | undefined)[] = [];
     
     if (name !== undefined) {
       updateFields.push(`name = $${values.length + 1}`);

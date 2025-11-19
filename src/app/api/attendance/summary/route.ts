@@ -15,7 +15,8 @@ export async function GET(request: NextRequest) {
         SELECT status FROM "Attendance"
         WHERE date = ${date} AND "schoolId" = ${schoolId}
       `;
-    } else {
+    } 
+    else {
       attendance = await sql`
         SELECT status FROM "Attendance"
         WHERE date = ${date}

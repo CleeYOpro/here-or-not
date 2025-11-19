@@ -237,7 +237,7 @@ export default function AdminDashboard({
         
         // Rebuild assignments
         const assignmentsMap: ClassAssignments = {};
-        studentsData.forEach((student: any) => {
+        studentsData.forEach((student: Student) => {
           if (student.classId) {
             if (!assignmentsMap[student.classId]) {
               assignmentsMap[student.classId] = [];
@@ -368,7 +368,7 @@ export default function AdminDashboard({
           <div className="space-y-8">
             {/* Daily Summary */}
             <div className="bg-[#1E1E1E] rounded-xl p-6 border border-[#2D2D2D]">
-              <h2 className="text-2xl font-bold text-[#F1F1F1] mb-4">Today's Attendance Summary</h2>
+              <h2 className="text-2xl font-bold text-[#F1F1F1] mb-4">Today&apos;s Attendance Summary</h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-[#121212] p-6 rounded-lg border border-[#2D2D2D]">
                   <div className="text-[#4CAF50] text-4xl font-bold">{dailyAttendanceSummary.present}</div>

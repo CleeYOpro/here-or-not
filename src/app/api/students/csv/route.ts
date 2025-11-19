@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
 
     for (let i = 1; i < lines.length; i++) {
       const values = lines[i].split(',').map(v => v.trim());
-      const row: any = {};
+      const row: Record<string, string> = {};
       
       headers.forEach((header, index) => {
         row[header] = values[index] || '';
@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
     for (const row of rows) {
       try {
         // Check if class exists, create if not
-        let classRecord = await sql`
+        const classRecord = await sql`
           SELECT id, name FROM "Class"
           WHERE name = ${row.class} AND "schoolId" = ${schoolId}
           LIMIT 1

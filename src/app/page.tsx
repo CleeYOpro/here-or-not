@@ -78,7 +78,7 @@ export default function LoginPage() {
         
         // Build assignments from students data (classId -> studentIds)
         const assignmentsMap: ClassAssignments = {};
-        studentsData.forEach((student: any) => {
+        studentsData.forEach((student: Student) => {
           if (student.classId) {
             if (!assignmentsMap[student.classId]) {
               assignmentsMap[student.classId] = [];
